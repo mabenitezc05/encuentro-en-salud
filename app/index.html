@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Encuentro en Salud — Bogotá</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Figtree:wght@400;500;600;700;800&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="login-screen" class="login-screen">
+  <div class="login-hero">
+    <div class="hero-logo"><img src="img/mariposa.svg" alt="Mariposa Encuentro en salud"></div>
+    <h1 class="hero-title">Encuentro<br>en salud</h1>
+    <p class="hero-sub">El punto de atención correcto, abierto y alcanzable — calculado con el tráfico real de Bogotá.</p>
+    <ul class="hero-facts">
+      <li><b>57</b> droguerías</li>
+      <li><b>35</b> centros médicos</li>
+      <li><b>24/7</b> opciones seguras</li>
+    </ul>
+  </div>
+  <div class="login-card">
+    <div class="login-tabs">
+      <button id="tab-login" class="tab active">Ingresar</button>
+      <button id="tab-register" class="tab">Registrarme</button>
+    </div>
+    <form id="login-form" autocomplete="off">
+      <div id="register-fields" class="hidden">
+        <label>Nombre completo
+          <input type="text" id="reg-name" placeholder="Ej: María Benítez">
+        </label>
+        <label class="consent-check">
+          <input type="checkbox" id="reg-consent">
+          <span>Acepto el tratamiento de mis datos personales (nombre, correo y ubicación)
+          para recibir recomendaciones de puntos de atención y permitir su supervisión
+          por el administrador del sistema (Ley 1581 de 2012).</span>
+        </label>
+      </div>
+      <label>Correo electrónico
+        <input type="email" id="login-email" placeholder="correo@ejemplo.com" required>
+      </label>
+      <label>Contraseña
+        <input type="password" id="login-pass" placeholder="••••••••" required minlength="6">
+      </label>
+      <div id="login-error" class="login-error hidden"></div>
+      <button type="submit" class="btn-primary" id="login-submit">Ingresar</button>
+      <p class="login-hint">Demo: <code>demo@colsanitas.com</code> / <code>demo123</code><br>
+      Admin: <code>admin@colsanitas.com</code> (contraseña en la consola del servidor)</p>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div id="app-screen" class="app-screen hidden">
+  <header class="topbar">
+    <div class="topbar-brand"><span class="brand-logo"><img src="img/mariposa.svg" alt=""></span>Encuentro en salud <span class="city-chip">Bogotá</span></div>
+    <div class="topbar-right">
+      <div id="traffic-chip" class="traffic-chip" title="Nivel de tráfico estimado en Bogotá para el momento seleccionado"></div>
+      <button id="btn-avatar" class="avatar-btn" title="Personalizar mi avatar"></button>
+      <span id="user-name" class="user-name"></span>
+      <button id="btn-logout" class="btn-ghost">Salir</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <!-- Admin: usuarios en tiempo real -->
+      <section class="panel hidden" id="panel-admin">
+        <h2>Usuarios registrados (<span id="admin-count">0</span>) <span id="admin-live" class="live-dot off" title="Conexión en tiempo real"></span></h2>
+        <div id="admin-users" class="admin-users"></div>
+      </section>
+
+      <!-- Ubicación -->
+      <section class="panel">
+        <h2>Tu ubicación</h2>
+        <div class="loc-row">
+          <div class="autocomplete-wrap">
+            <input type="text" id="addr-input" placeholder="Escribe una dirección en Bogotá… (ej: Calle 100 # 15-20)" autocomplete="off">
+            <div id="addr-suggestions" class="suggestions hidden"></div>
+          </div>
+          <button id="btn-geo" class="btn-icon" title="Usar mi ubicación actual (GPS)" aria-label="Usar mi ubicación actual">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><line x1="12" y1="1.5" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22.5"/><line x1="1.5" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22.5" y2="12"/></svg>
+          </button>
+        </div>
+        <div id="loc-status" class="loc-status">Sin ubicación. Usa el botón de GPS o escribe tu dirección.</div>
+      </section>
+
+      <!-- Preferencias -->
+      <section class="panel">
+        <h2>Preferencias de búsqueda</h2>
+        <div class="pref-grid">
+          <div class="pref">
+            <span class="pref-label">Buscar</span>
+            <div class="seg" id="seg-tipo">
+              <button data-v="todos" class="active">Todos</button>
+              <button data-v="drogueria">Droguerías</button>
+              <button data-v="prestador">Centros médicos</button>
+            </div>
+          </div>
+          <div class="pref">
+            <span class="pref-label">Transporte</span>
+            <div class="seg" id="seg-modo">
+              <button data-v="carro" class="active">Carro</button>
+              <button data-v="caminando">A pie</button>
+            </div>
+          </div>
+          <div class="pref">
+            <span class="pref-label">¿Cuándo vas?</span>
+            <div class="seg" id="seg-cuando">
+              <button data-v="ahora" class="active">Ahora</button>
+              <button data-v="otra">Otra hora</button>
+            </div>
+            <input type="datetime-local" id="dt-custom" class="hidden">
+          </div>
+        </div>
+        <div id="eta-source" class="eta-source">Tiempos estimados con modelo local</div>
+      </section>
+
+      <!-- Alertas críticas -->
+      <section class="panel" id="panel-critico">
+        <h2>Tiempos críticos</h2>
+        <div id="critico-body" class="critico-body">Selecciona tu ubicación para calcular alertas.</div>
+      </section>
+
+      <!-- Recomendaciones -->
+      <section class="panel grow">
+        <h2>Recomendaciones</h2>
+        <div id="reco-list" class="reco-list">
+          <div class="empty">Indica tu ubicación para ver las mejores opciones cerca de ti.</div>
+        </div>
+      </section>
+    </aside>
+
+    <main id="map"></main>
+  </div>
+
+  <!-- Permiso de ubicación -->
+  <div id="consent-modal" class="modal-backdrop hidden">
+    <div class="modal">
+      <h3>Compartir tu ubicación</h3>
+      <p class="modal-sub">Para recomendarte el punto de atención más conveniente y
+      mostrar tu desplazamiento en tiempo real al administrador, la app necesita
+      usar tu ubicación (GPS o la dirección que escribas).</p>
+      <ul class="consent-list">
+        <li>Se guarda solo tu última posición y se actualiza mientras usas la app.</li>
+        <li>La ve únicamente el administrador del sistema.</li>
+        <li>Puedes dejar de compartirla cerrando la sesión.</li>
+      </ul>
+      <button class="btn-primary" id="consent-allow">Permitir y continuar</button>
+      <button class="btn-ghost modal-secondary" id="consent-later">Ahora no</button>
+    </div>
+  </div>
+
+  <!-- Panel rápido de avatar -->
+  <div id="avatar-modal" class="modal-backdrop hidden">
+    <div class="modal">
+      <h3>Tu avatar</h3>
+      <p class="modal-sub" id="avatar-hint">Así te verás en el mapa.</p>
+      <div class="avatar-stage">
+        <div id="avatar-3d" class="avatar-3d hidden"></div>
+        <div id="avatar-preview-2d" class="avatar-preview"></div>
+        <button id="avatar-wave" class="btn-ghost wave-btn" title="Hacer que el avatar salude">Saludar</button>
+      </div>
+      <div class="av-row"><span>Piel</span><div id="av-skin" class="swatches"></div></div>
+      <div class="av-row"><span>Cabello</span>
+        <div class="seg small" id="av-style">
+          <button data-v="corto">Corto</button>
+          <button data-v="largo">Largo</button>
+          <button data-v="calvo">Sin cabello</button>
+        </div>
+      </div>
+      <div class="av-row"><span>Color de cabello</span><div id="av-hair" class="swatches"></div></div>
+      <div class="av-row"><span>Camiseta</span><div id="av-shirt" class="swatches"></div></div>
+      <div class="av-row"><span>Gafas</span>
+        <div class="seg small" id="av-glasses">
+          <button data-v="no">Sin gafas</button>
+          <button data-v="si">Con gafas</button>
+        </div>
+      </div>
+      <button class="btn-primary" id="avatar-done">Listo</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/three@0.147.0/build/three.min.js"></script>
+<script src="data/data.js"></script>
+<script src="js/avatar3d.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

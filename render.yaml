@@ -1,0 +1,30 @@
+# Despliegue en Render (Blueprint). Docs: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: encuentro-en-salud
+    runtime: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python server.py"
+    healthCheckPath: /
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: COOKIE_SECURE
+        value: "1"
+      - key: TRUST_PROXY
+        value: "1"
+      - key: GOOGLE_MODE
+        value: seleccion
+      - key: ADMIN_PASS
+        sync: false          # se define en el panel de Render (secreto)
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false          # se define en el panel de Render (secreto)
+    # Para conservar usuarios y caché de fotos entre despliegues (plan pago):
+    # descomenta el disco y la variable DATA_DIR.
+    #   - key: DATA_DIR
+    #     value: /var/data
+    # disk:
+    #   name: datos
+    #   mountPath: /var/data
+    #   sizeGB: 1

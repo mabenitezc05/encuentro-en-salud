@@ -1,0 +1,10 @@
+arrancar.sh
+encuentro.db
+.photo_cache/
+server.log
+nohup.out
+.DS_Store
+__pycache__/
+*.pyc
+.agents/
+.claude/

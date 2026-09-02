@@ -1,0 +1,10 @@
+Fotos locales de los sitios (prioridad sobre Google Places).
+
+Guarda aqui una foto JPG por sitio, nombrada por su ID:
+  D46.jpg  -> drogueria con id D46
+  P3.jpg   -> centro medico con id P3
+
+El archivo listado.csv relaciona cada ID con su nombre y direccion.
+Formato recomendado: JPG horizontal, ~520px de ancho.
+Si no hay foto local, la app intenta Google Places (si hay clave) y,
+en ultimo caso, muestra el placeholder de marca.
