@@ -37,7 +37,7 @@ body {
   font-family: var(--cuerpo);
   color: var(--tinta);
   background: var(--nube);
-  height: 100vh; overflow: hidden;
+  height: 100vh; height: 100dvh; overflow: hidden;
   -webkit-font-smoothing: antialiased;
 }
 .hidden { display: none !important; }
@@ -51,7 +51,7 @@ button { font-family: var(--cuerpo); }
    LOGIN — panel de marca + formulario
    ============================================================ */
 .login-screen {
-  height: 100vh; display: grid; grid-template-columns: 1.1fr 1fr;
+  height: 100vh; height: 100dvh; display: grid; grid-template-columns: 1.1fr 1fr;
   background: var(--nube);
 }
 .login-hero {
@@ -75,6 +75,7 @@ button { font-family: var(--cuerpo); }
 @media (prefers-reduced-motion: reduce) {
   .hero-logo { animation: none; }
 }
+.brand-txt-short { display: none; }
 .brand-logo {
   width: 30px; height: 30px; border-radius: 50%; background: var(--blanco);
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
@@ -158,7 +159,7 @@ button { font-family: var(--cuerpo); }
 /* ============================================================
    APP
    ============================================================ */
-.app-screen { height: 100vh; display: flex; flex-direction: column; }
+.app-screen { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
 .topbar {
   height: 58px; background: var(--tinta); color: var(--blanco);
   display: flex; align-items: center; justify-content: space-between;
@@ -502,11 +503,76 @@ button { font-family: var(--cuerpo); }
    RESPONSIVE
    ============================================================ */
 @media (max-width: 920px) {
-  .login-screen { grid-template-columns: 1fr; overflow-y: auto; }
-  .login-hero { padding: 44px 28px; min-height: 44vh; }
-  .hero-title { font-size: 40px; }
+  .login-screen {
+    grid-template-columns: 1fr; overflow-y: auto;
+    height: auto; min-height: 100vh; min-height: 100dvh;
+  }
+  .login-hero { padding: 44px 28px 52px; min-height: auto; justify-content: flex-start; }
   .login-card { margin: 26px auto 40px; }
   .layout { flex-direction: column-reverse; }
-  .sidebar { width: 100%; max-height: 55vh; }
-  #map { min-height: 45vh; }
+  .sidebar { width: 100%; min-width: 0; max-height: 55vh; max-height: 55dvh; }
+  #map { min-height: 45vh; min-height: 45dvh; }
+}
+
+/* ============================================================
+   MÓVIL (teléfonos)
+   ============================================================ */
+@media (max-width: 640px) {
+  /* barra superior compacta con safe areas */
+  .topbar {
+    height: auto; min-height: 52px; gap: 8px;
+    padding: 8px max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
+  }
+  .topbar-brand { font-size: 15px; gap: 7px; min-width: 0; white-space: nowrap; }
+  .brand-txt-full { display: none; }
+  .brand-txt-short { display: inline; }
+  .brand-logo { width: 26px; height: 26px; }
+  .brand-logo img { width: 16px; height: 16px; }
+  .anio-chip { font-size: 10px; padding: 2px 7px; }
+  .city-chip, .user-name { display: none; }   /* lo esencial primero */
+  .topbar-right { gap: 8px; }
+  /* en teléfono el chip de tráfico se condensa a su punto de color */
+  .traffic-chip { font-size: 0; padding: 7px; }
+  .traffic-chip:not(:empty)::before { width: 10px; height: 10px; margin-right: 0; vertical-align: 0; }
+  .avatar-btn { width: 32px; height: 32px; }
+  .btn-ghost { padding: 6px 11px; font-size: 12px; }
+
+  /* mapa arriba, lista con más aire abajo */
+  #map { min-height: 40dvh; height: 40dvh; flex: none; }
+  .sidebar {
+    flex: 1; max-height: none; padding: 10px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    gap: 10px;
+  }
+  .panel { padding: 13px 14px; }
+
+  /* evita el zoom automático de iOS al enfocar campos */
+  #addr-input, #login-form input, #dt-custom { font-size: 16px; }
+
+  /* objetivos táctiles cómodos */
+  .seg button { padding: 12px 6px; }
+  .btn-icon { width: 48px; }
+  .suggestions div { padding: 13px 12px; }
+  .reco-card { padding: 13px 12px; }
+
+  /* héroe del login a escala de teléfono */
+  .login-hero { padding: 32px 22px 46px; }
+  .hero-logo { width: 70px; height: 70px; margin-bottom: 20px; }
+  .hero-logo img { width: 42px; height: 42px; }
+  .hero-eyebrow { font-size: 13.5px; }
+  .hero-title { font-size: 28px; margin-bottom: 16px; }
+  .hero-viii { font-size: 62px; }
+  .hero-fecha { font-size: 14px; padding: 9px 16px; margin-bottom: 20px; }
+  .hero-sub { font-size: 14.5px; margin-bottom: 24px; }
+  .hero-facts { gap: 20px; flex-wrap: wrap; }
+  .hero-facts b { font-size: 20px; }
+  .login-card { padding: 26px 20px; width: min(420px, 92%); }
+
+  /* modales a pantalla de teléfono */
+  .modal { width: min(370px, 94vw); padding: 20px 18px; max-height: 88dvh; }
+  .avatar-3d, .avatar-stage { max-width: 100%; }
+  .avatar-3d { width: 220px; height: 220px; }
+
+  /* popups del mapa un poco más angostos */
+  .leaflet-popup-content { margin: 11px 12px; }
 }
