@@ -203,7 +203,7 @@ button { font-family: var(--cuerpo); }
 #map { flex: 1; }
 
 .panel {
-  background: rgba(255,255,255,.55); border-radius: var(--r-panel);
+  background: rgba(255,255,255,.45); border-radius: var(--r-panel);
   padding: 16px 18px; box-shadow: var(--sombra);
   backdrop-filter: blur(9px); -webkit-backdrop-filter: blur(9px);
 }
@@ -278,7 +278,7 @@ button { font-family: var(--cuerpo); }
 .reco-card {
   border: 1.5px solid var(--linea); border-radius: 14px; padding: 12px 13px;
   cursor: pointer; position: relative;
-  background: rgba(255,255,255,.35);
+  background: rgba(255,255,255,.2);   /* 80% de transparencia en reposo */
   backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
   transition: border-color .12s, box-shadow .12s, background .15s;
 }
@@ -478,7 +478,7 @@ button { font-family: var(--cuerpo); }
 .admin-user {
   display: flex; gap: 10px; align-items: center; padding: 8px 10px;
   border: 1.5px solid var(--linea); border-radius: var(--r-item);
-  background: rgba(255,255,255,.35); transition: background .15s, border-color .12s;
+  background: rgba(255,255,255,.2); transition: background .15s, border-color .12s;
 }
 .admin-user.locatable { cursor: pointer; }
 .admin-user.locatable:hover { border-color: var(--azul); background: rgba(255,255,255,.7); }

@@ -1069,6 +1069,13 @@ function connectSSE() {
 function adminApplyUser(u) {
   adminUsers[u.email] = u;
   if (u.email === currentUser.email) return; // mi propio marcador ya existe
+  if (u.lat == null || u.lng == null) {
+    // el usuario cerró sesión (o nunca se ubicó): quitar marcador y rastro
+    if (adminMarkers[u.email]) { adminMarkers[u.email].remove(); delete adminMarkers[u.email]; }
+    const tr = adminTrails[u.email];
+    if (tr) { if (tr.line) tr.line.remove(); delete adminTrails[u.email]; }
+    return;
+  }
   if (u.lat != null && u.lng != null) {
     // rastro de desplazamiento: línea teal con las últimas 40 posiciones
     const tr = adminTrails[u.email] || (adminTrails[u.email] = { pts: [], line: null });

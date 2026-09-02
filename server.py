@@ -542,7 +542,17 @@ class Handler(SimpleHTTPRequestHandler):
         if path == '/api/logout':
             token = self._token()
             if token:
+                email = session_get(token)
                 session_drop(token)
+                if email:
+                    # privacidad: al cerrar sesión, el usuario deja de ser ubicable
+                    with db() as c:
+                        c.execute('UPDATE users SET lat=NULL, lng=NULL, label=NULL, '
+                                  'accuracy=NULL, updated_at=? WHERE email=?',
+                                  (time.time(), email))
+                        row = c.execute('SELECT * FROM users WHERE email=?', (email,)).fetchone()
+                    if row:
+                        publish({'type': 'user-update', 'user': public_user(row)})
             return self._json(200, {'ok': True}, clear_cookie=True)
 
         # --- rutas autenticadas ---
