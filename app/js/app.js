@@ -219,7 +219,8 @@ function decodePolyline(str) {
  * ============================================================ */
 const AV_SKINS = ['#f6d3b3', '#eab68f', '#c68863', '#8d5a3b'];
 const AV_HAIRC = ['#2b2118', '#5b3a1e', '#a86b2d', '#d9a441', '#9aa7b1'];
-const AV_SHIRTS = ['#0055a5', '#00a3a1', '#2e9e5b', '#e8862c', '#d64545', '#6a4bc4'];
+// prendas en la paleta de la mariposa (alas azules y verdes del logo)
+const AV_SHIRTS = ['#287dbc', '#4eafcb', '#5a99cd', '#a6d11d', '#23ab75', '#77d8af'];
 const AV_DEFAULT = { skin: AV_SKINS[1], style: 'corto', hair: AV_HAIRC[0], shirt: AV_SHIRTS[0], glasses: 'no' };
 
 let avatarCfg = { ...AV_DEFAULT };
