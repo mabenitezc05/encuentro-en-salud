@@ -519,8 +519,10 @@ button { font-family: var(--cuerpo); }
    ============================================================ */
 @media (max-width: 920px) {
   .login-screen {
-    grid-template-columns: 1fr; overflow-y: auto;
-    height: auto; min-height: 100vh; min-height: 100dvh;
+    grid-template-columns: 1fr;
+    height: 100vh; height: 100dvh;
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+    display: block;               /* filas en flujo normal: el scroll las recorre */
   }
   .login-hero { padding: 44px 28px 52px; min-height: auto; justify-content: flex-start; }
   .login-card { margin: 26px auto 40px; }
@@ -555,9 +557,10 @@ button { font-family: var(--cuerpo); }
   /* mapa arriba, lista con más aire abajo */
   #map { min-height: 40dvh; height: 40dvh; flex: none; }
   .sidebar {
-    flex: 1; max-height: none; padding: 10px;
+    flex: 1; min-height: 0; max-height: none; padding: 10px;
     padding-bottom: calc(10px + env(safe-area-inset-bottom));
     gap: 10px;
+    overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
   }
   .panel { padding: 13px 14px; }
 
