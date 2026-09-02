@@ -203,8 +203,9 @@ button { font-family: var(--cuerpo); }
 #map { flex: 1; }
 
 .panel {
-  background: var(--blanco); border-radius: var(--r-panel);
+  background: rgba(255,255,255,.55); border-radius: var(--r-panel);
   padding: 16px 18px; box-shadow: var(--sombra);
+  backdrop-filter: blur(9px); -webkit-backdrop-filter: blur(9px);
 }
 .panel.grow { flex: 1; }
 .panel h2 {
@@ -276,11 +277,16 @@ button { font-family: var(--cuerpo); }
 .empty { font-size: 13px; color: var(--tinta-60); padding: 12px 4px; }
 .reco-card {
   border: 1.5px solid var(--linea); border-radius: 14px; padding: 12px 13px;
-  cursor: pointer; transition: border-color .12s, box-shadow .12s; position: relative;
-  background: var(--blanco);
+  cursor: pointer; position: relative;
+  background: rgba(255,255,255,.35);
+  backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+  transition: border-color .12s, box-shadow .12s, background .15s;
 }
-.reco-card:hover { border-color: var(--azul); box-shadow: 0 4px 14px rgba(0,94,184,.12); }
-.reco-card.selected { border-color: var(--azul); background: #F6FAFE; }
+.reco-card:hover {
+  border-color: var(--azul); box-shadow: 0 4px 14px rgba(0,94,184,.12);
+  background: rgba(255,255,255,.7);   /* 30% de transparencia */
+}
+.reco-card.selected { border-color: var(--azul); background: rgba(255,255,255,.7); }
 .reco-card.top { border: 2px solid var(--lima); box-shadow: 0 4px 18px rgba(166,209,29,.25); }
 .top-tag {
   display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: .06em;
@@ -373,7 +379,11 @@ button { font-family: var(--cuerpo); }
 }
 
 /* --- popups Leaflet --- */
-.leaflet-popup-content-wrapper { border-radius: 14px; box-shadow: 0 10px 30px rgba(11,45,77,.22); }
+.leaflet-popup-content-wrapper {
+  border-radius: 14px; box-shadow: 0 10px 30px rgba(11,45,77,.22);
+  background: rgba(255,255,255,.7);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
 .leaflet-popup-content { font-family: var(--cuerpo); font-size: 12.5px; line-height: 1.5; margin: 13px 15px; color: var(--tinta); }
 .pop-photo {
   position: relative; height: 118px; border-radius: 12px; overflow: hidden;
@@ -468,9 +478,10 @@ button { font-family: var(--cuerpo); }
 .admin-user {
   display: flex; gap: 10px; align-items: center; padding: 8px 10px;
   border: 1.5px solid var(--linea); border-radius: var(--r-item);
+  background: rgba(255,255,255,.35); transition: background .15s, border-color .12s;
 }
 .admin-user.locatable { cursor: pointer; }
-.admin-user.locatable:hover { border-color: var(--azul); background: #F6FAFE; }
+.admin-user.locatable:hover { border-color: var(--azul); background: rgba(255,255,255,.7); }
 .admin-user-avatar {
   width: 36px; height: 36px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
   border: 2px solid var(--linea); background: var(--azul-suave); line-height: 0;
