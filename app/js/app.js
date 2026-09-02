@@ -742,6 +742,7 @@ function setUserLocation(lat, lng, label) {
   map.setView([lat, lng], 14);
   api('/api/location', 'POST', { lat, lng, label, accuracy: gpsAccuracy }).catch(() => {});
   refresh();
+  startGeoWatch();   // con consentimiento dado, seguir el desplazamiento en vivo
 }
 
 function tryGeolocate(silent) {
@@ -771,16 +772,31 @@ function tryGeolocate(silent) {
         : 'Permiso de ubicación denegado. Escribe tu dirección.';
       $('loc-status').classList.remove('ok');
     },
-    { enableHighAccuracy: true, timeout: 9000, maximumAge: 120000 }
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 10000 }
   );
 }
 $('btn-geo').addEventListener('click', () => tryGeolocate(false));
 
 /* Reporte continuo de desplazamientos (solo con permiso del usuario).
- * Alta precisión: descarta lecturas con error > 60 m, publica al moverse más
- * que el umbral dinámico (10 m o la mitad del error del GPS) y máximo cada 8 s. */
+ *
+ * Diseño del rastreo:
+ * - Filtro ADAPTATIVO: acepta la mejor lectura disponible. Con posición fresca
+ *   exige <=150 m de error; si llevamos >30 s sin lectura útil acepta hasta
+ *   800 m (mejor una posición aproximada que ninguna).
+ * - Umbral de movimiento proporcional al error (anti-ruido), entre 8 y 60 m.
+ * - Cadencia máxima: 1 envío cada 5 s. Latido cada 30 s aunque esté quieto,
+ *   para que el admin vea la traza "hace segundos" y la sesión siga viva.
+ * - Indicador visible del estado (en vivo / señal débil / envíos realizados).
+ * - Wake lock: la pantalla no se apaga mientras se comparte (el GPS de los
+ *   teléfonos se pausa con la pantalla apagada). */
 let geoWatchId = null, geoLastPost = 0, geoLastPos = null;
 let gpsAccuracy = null, accCircle = null;
+let geoSendCount = 0, geoLastFixAt = 0, wakeLock = null;
+
+function setLocStatus(texto, ok) {
+  $('loc-status').textContent = texto;
+  $('loc-status').classList.toggle('ok', !!ok);
+}
 
 function updateAccuracyCircle(lat, lng) {
   if (!gpsAccuracy || !map) return;
@@ -793,27 +809,60 @@ function updateAccuracyCircle(lat, lng) {
   }
 }
 
+function onGeoFix(pos) {
+  const { latitude: lat, longitude: lng } = pos.coords;
+  const acc = pos.coords.accuracy || 99;
+  const now = Date.now();
+
+  // filtro adaptativo de precisión
+  const limite = (state.user && now - geoLastFixAt < 30000) ? 150 : 800;
+  if (acc > limite) {
+    setLocStatus('Señal GPS débil (±' + Math.round(acc) + ' m) — esperando mejor precisión…', false);
+    return;
+  }
+  geoLastFixAt = now;
+  gpsAccuracy = acc;
+
+  // anti-ruido: solo cuenta como movimiento si supera el umbral proporcional
+  const umbralM = Math.max(8, Math.min(60, acc * 0.6));
+  const movedM = geoLastPos ? haversineKm(geoLastPos[0], geoLastPos[1], lat, lng) * 1000 : Infinity;
+  const latido = now - geoLastPost > 30000;
+  if (movedM < umbralM && !latido) return;
+  if (now - geoLastPost < 5000) return;
+
+  geoLastPost = now;
+  geoLastPos = [lat, lng];
+  const label = (state.user && state.user.label) || 'GPS en vivo';
+  state.user = { lat, lng, label };
+  if (userMarker) userMarker.setLatLng([lat, lng]);
+  updateAccuracyCircle(lat, lng);
+  geoSendCount++;
+  setLocStatus('En vivo · ±' + Math.round(acc) + ' m · ' + geoSendCount +
+    (geoSendCount === 1 ? ' envío' : ' envíos') + ' · ' + label, true);
+  api('/api/location', 'POST', { lat, lng, label, accuracy: acc }).catch(() => {});
+  refresh();
+}
+
+async function pedirWakeLock() {
+  try {
+    if ('wakeLock' in navigator && !wakeLock) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    }
+  } catch (e) { /* no soportado o denegado: seguimos sin él */ }
+}
+
 function startGeoWatch() {
   if (geoWatchId != null || !navigator.geolocation || !locConsent) return;
-  geoWatchId = navigator.geolocation.watchPosition((pos) => {
-    const { latitude: lat, longitude: lng, accuracy } = pos.coords;
-    if (accuracy && accuracy > 60) return;       // lectura poco confiable: ignorar
-    gpsAccuracy = accuracy || null;
-    const now = Date.now();
-    const umbralKm = Math.max(10, (accuracy || 20) / 2) / 1000;
-    const moved = !geoLastPos || haversineKm(geoLastPos[0], geoLastPos[1], lat, lng) > umbralKm;
-    if (!moved || now - geoLastPost < 8000) return;
-    geoLastPost = now;
-    geoLastPos = [lat, lng];
-    const label = (state.user && state.user.label) || 'GPS en vivo';
-    state.user = { lat, lng, label };
-    if (userMarker) userMarker.setLatLng([lat, lng]);
-    updateAccuracyCircle(lat, lng);
-    $('loc-status').textContent = label + ' · precisión ±' + Math.round(accuracy || 0) + ' m';
-    $('loc-status').classList.add('ok');
-    api('/api/location', 'POST', { lat, lng, label, accuracy }).catch(() => {});
-    refresh();
-  }, () => {}, { enableHighAccuracy: true, maximumAge: 3000, timeout: 20000 });
+  geoWatchId = navigator.geolocation.watchPosition(onGeoFix, (err) => {
+    if (err && err.code === 1) {
+      setLocStatus('Permiso de GPS denegado en el navegador: activa la ubicación para compartir en vivo.', false);
+    }
+  }, { enableHighAccuracy: true, maximumAge: 2000, timeout: 25000 });
+  pedirWakeLock();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') pedirWakeLock();
+  });
 }
 
 let acTimer = null, acAbort = null;
@@ -1080,9 +1129,10 @@ function adminApplyUser(u) {
     // rastro de desplazamiento: línea teal con las últimas 40 posiciones
     const tr = adminTrails[u.email] || (adminTrails[u.email] = { pts: [], line: null });
     const last = tr.pts[tr.pts.length - 1];
-    if (!last || last[0] !== u.lat || last[1] !== u.lng) {
+    const saltoM = last ? haversineKm(last[0], last[1], u.lat, u.lng) * 1000 : Infinity;
+    if (saltoM > 5) {   // ignorar vibración del GPS, guardar movimiento real
       tr.pts.push([u.lat, u.lng]);
-      if (tr.pts.length > 40) tr.pts.shift();
+      if (tr.pts.length > 80) tr.pts.shift();
       if (tr.pts.length > 1) {
         if (tr.line) tr.line.setLatLngs(tr.pts);
         else {
