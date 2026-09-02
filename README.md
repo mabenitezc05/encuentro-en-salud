@@ -7,6 +7,42 @@ de viaje con tráfico, distancia y horario. Un **rol administrador** ve la ubica
 de todos los usuarios registrados **en tiempo real**. Cada usuario se representa con
 un **avatar 3D interactivo** personalizable.
 
+## Despliegue en Render
+
+El repo incluye [render.yaml](render.yaml) (Blueprint). Pasos:
+
+1. Sube el repo a GitHub (los secretos están fuera del repo vía `.gitignore`).
+2. En [dashboard.render.com](https://dashboard.render.com): **New → Blueprint**,
+   conecta el repo y despliega.
+3. En el servicio, define las variables secretas: `ADMIN_PASS` y
+   `GOOGLE_MAPS_API_KEY`. Las demás (`HOST=0.0.0.0`, `COOKIE_SECURE=1`,
+   `TRUST_PROXY=1`, `GOOGLE_MODE=seleccion`) ya vienen en el Blueprint.
+4. La URL pública queda con HTTPS, requisito del GPS en navegadores.
+
+**Persistencia:** en el plan gratuito el disco es efímero — usuarios y caché de
+fotos se pierden en cada despliegue/reinicio. Para conservarlos, agrega un disco
+(plan pago), monta `/var/data` y define `DATA_DIR=/var/data` (líneas comentadas
+en `render.yaml`).
+
+## Permisos de uso de datos y ubicación (Ley 1581 de 2012)
+
+- **Registro**: exige aceptar la política de tratamiento de datos (casilla
+  obligatoria; el servidor rechaza el registro sin `consent:true` y guarda la
+  fecha de aceptación).
+- **Ubicación**: antes de usar GPS o publicar una dirección, la app muestra un
+  aviso que explica qué se recolecta, quién lo ve y cómo dejar de compartir; el
+  servidor **rechaza (`403`) cualquier reporte de ubicación de un usuario que no
+  haya dado ese consentimiento** (fecha guardada en `loc_consent_at`).
+- El GPS continuo solo se activa tras ese consentimiento.
+
+## GPS de alta precisión (tiempo real)
+
+- `enableHighAccuracy`, lecturas con error > 60 m se descartan.
+- Umbral de movimiento dinámico: se publica al desplazarse más de
+  máx(10 m, error/2), como mínimo cada 8 s.
+- La precisión (±m) se reporta al servidor, se dibuja como círculo alrededor del
+  usuario y el administrador la ve en el popup de cada usuario.
+
 ## Cómo ejecutarla
 
 ```bash
