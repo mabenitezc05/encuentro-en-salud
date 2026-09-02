@@ -645,7 +645,8 @@ function sitePoints(r) {
   if (!r.st.open) pts -= r.st.opensToday ? 35 : 55;
   if (r.critical === 'no-alcanza') pts -= 30;
   else if (r.critical === 'critico') pts -= 12;
-  if (r.st.is24h) pts += 8;                      // bono disponibilidad total
+  // Sin bono plano por 24 h: de día manda el tiempo de llegada, y de noche los
+  // 24 h suben solos porque los demás cargan la penalización de estar cerrados.
   return Math.max(1, Math.min(100, Math.round(pts)));
 }
 
