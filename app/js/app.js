@@ -843,6 +843,32 @@ function onGeoFix(pos) {
   refresh();
 }
 
+/* Presencia: los navegadores pausan el GPS en segundo plano. Al ocultarse la
+ * app avisamos "pausado" (sendBeacon funciona durante la salida) y al volver
+ * publicamos la posición actual de inmediato (salto de recuperación). */
+function sendPresence(state) {
+  try {
+    const blob = new Blob([JSON.stringify({ state })], { type: 'application/json' });
+    if (navigator.sendBeacon && navigator.sendBeacon('/api/presence', blob)) return;
+  } catch (e) { /* caer al fetch */ }
+  api('/api/presence', 'POST', { state }).catch(() => {});
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (!currentUser || !locConsent) return;
+  if (document.visibilityState === 'hidden') {
+    sendPresence('pausado');
+  } else {
+    sendPresence('activo');
+    setLocStatus('Reanudando rastreo…', false);
+    geoLastPost = 0;   // el próximo fix publica sin esperar cadencia
+    if (navigator.geolocation && geoWatchId != null) {
+      navigator.geolocation.getCurrentPosition(onGeoFix, () => {},
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+    }
+  }
+});
+
 async function pedirWakeLock() {
   try {
     if ('wakeLock' in navigator && !wakeLock) {
@@ -1086,8 +1112,10 @@ const adminMarkers = {};  // email -> L.marker
 const adminTrails = {};   // email -> {pts: [], line: L.polyline} rastro de desplazamiento
 let sse = null;
 
+let adminTick = null;
 function initAdmin() {
   $('panel-admin').classList.remove('hidden');
+  if (!adminTick) adminTick = setInterval(renderAdminList, 15000);
   api('/api/users').then((d) => {
     d.users.forEach(adminApplyUser);
     renderAdminList();
@@ -1142,7 +1170,8 @@ function adminApplyUser(u) {
         }
       }
     }
-    const html = '<div class="peer-avatar-pin' + (u.role === 'admin' ? ' peer-admin' : '') + '">' +
+    const html = '<div class="peer-avatar-pin' + (u.role === 'admin' ? ' peer-admin' : '') +
+      (u.presence === 'pausado' ? ' peer-pausado' : '') + '">' +
       avatarHtml(u.avatar, u.avatarImg) + '</div>';
     const icon = L.divIcon({ className: '', html, iconSize: [38, 38], iconAnchor: [19, 19] });
     if (adminMarkers[u.email]) {
@@ -1158,8 +1187,21 @@ function adminApplyUser(u) {
       '<div class="pop-line">' + escapeHtml(u.email) + ' · rol: ' + escapeHtml(u.role) + '</div>' +
       '<div class="pop-line">' + escapeHtml(u.label || 'sin dirección') +
         (u.accuracy ? ' · ±' + Math.round(u.accuracy) + ' m' : '') + '</div>' +
-      '<div class="pop-line">' + timeAgo(u.updatedAt) + '</div>');
+      '<div class="pop-line"><span class="est-chip ' + estadoUsuario(u).cls + '">' +
+        escapeHtml(estadoUsuario(u).txt) + '</span></div>');
   }
+}
+
+/** Estado real de un usuario para la vista del admin */
+function estadoUsuario(u) {
+  if (u.lat == null) {
+    return { txt: u.presence === 'desconectado' ? 'Cerró sesión' : 'Sin ubicación reportada', cls: 'est-off' };
+  }
+  if (u.presence === 'pausado') return { txt: 'Pausado · app en segundo plano', cls: 'est-pausa' };
+  const s = Date.now() / 1000 - (u.updatedAt || 0);
+  if (s < 45) return { txt: 'En vivo · ' + (u.accuracy ? '±' + Math.round(u.accuracy) + ' m' : 'ubicado'), cls: 'est-vivo' };
+  if (s < 300) return { txt: 'Última señal ' + timeAgo(u.updatedAt), cls: 'est-idle' };
+  return { txt: 'Inactivo · ' + timeAgo(u.updatedAt), cls: 'est-off' };
 }
 
 function timeAgo(ts) {
@@ -1184,8 +1226,8 @@ function renderAdminList() {
         '<div class="admin-user-name">' + escapeHtml(u.name) +
           (u.role === 'admin' ? ' <span class="badge tipo-p">admin</span>' : '') +
           (u.email === currentUser.email ? ' <span class="badge gris">tú</span>' : '') + '</div>' +
-        '<div class="admin-user-sub">' + (located ? escapeHtml(u.label || (u.lat.toFixed(4) + ', ' + u.lng.toFixed(4))) : 'Sin ubicación reportada') + '</div>' +
-        '<div class="admin-user-sub">' + timeAgo(u.updatedAt) + '</div>' +
+        '<div class="admin-user-sub">' + (located ? escapeHtml(u.label || (u.lat.toFixed(4) + ', ' + u.lng.toFixed(4))) : '') + '</div>' +
+        '<div class="admin-user-sub"><span class="est-chip ' + estadoUsuario(u).cls + '">' + escapeHtml(estadoUsuario(u).txt) + '</span></div>' +
       '</div></div>';
   }).join('') || '<div class="empty">Aún no hay usuarios registrados.</div>';
 

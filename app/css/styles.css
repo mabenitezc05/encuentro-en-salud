@@ -497,6 +497,21 @@ button { font-family: var(--cuerpo); }
   box-shadow: 0 0 0 2px var(--teal), 0 3px 8px rgba(11,45,77,.3);
 }
 .peer-avatar-pin.peer-admin { box-shadow: 0 0 0 2px var(--lima), 0 3px 8px rgba(11,45,77,.3); }
+.peer-avatar-pin.peer-pausado { filter: grayscale(.65); opacity: .6; }
+
+/* estado de cada usuario (vista admin) */
+.est-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10.5px; font-weight: 700; padding: 2.5px 9px; border-radius: 20px;
+}
+.est-chip::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.est-vivo { background: var(--teal-suave); color: #00756F; }
+.est-vivo::before { animation: vivo-pulso 1.6s ease-in-out infinite; }
+@keyframes vivo-pulso { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+.est-pausa { background: var(--naranja-suave); color: #7A5000; }
+.est-idle { background: var(--azul-suave); color: var(--azul-hover); }
+.est-off { background: var(--nube); color: var(--tinta-60); }
+@media (prefers-reduced-motion: reduce) { .est-vivo::before { animation: none; } }
 .peer-avatar-pin svg, .peer-avatar-pin img { width: 100%; height: 100%; display: block; }
 
 /* ============================================================

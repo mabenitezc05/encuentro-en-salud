@@ -159,7 +159,8 @@ def init_db():
             create_user(c, 'demo@colsanitas.com', 'Usuario Demo', 'demo123', 'user')
             print('[i] Usuario demo: demo@colsanitas.com / demo123 (solo desarrollo)')
         # migraciones: consentimientos (Ley 1581/2012) y precision del GPS
-        for col in ('consent_at REAL', 'loc_consent_at REAL', 'accuracy REAL'):
+        for col in ('consent_at REAL', 'loc_consent_at REAL', 'accuracy REAL',
+                    'presence TEXT', 'presence_at REAL'):
             try:
                 c.execute('ALTER TABLE users ADD COLUMN ' + col)
             except sqlite3.OperationalError:
@@ -184,6 +185,8 @@ def public_user(row):
         'avatarImg': row['avatar_img'],
         'accuracy': row['accuracy'],
         'locConsent': bool(row['loc_consent_at']),
+        'presence': row['presence'],
+        'presenceAt': row['presence_at'],
     }
 
 
@@ -548,8 +551,9 @@ class Handler(SimpleHTTPRequestHandler):
                     # privacidad: al cerrar sesión, el usuario deja de ser ubicable
                     with db() as c:
                         c.execute('UPDATE users SET lat=NULL, lng=NULL, label=NULL, '
-                                  'accuracy=NULL, updated_at=? WHERE email=?',
-                                  (time.time(), email))
+                                  "accuracy=NULL, presence='desconectado', presence_at=?, "
+                                  'updated_at=? WHERE email=?',
+                                  (time.time(), time.time(), email))
                         row = c.execute('SELECT * FROM users WHERE email=?', (email,)).fetchone()
                     if row:
                         publish({'type': 'user-update', 'user': public_user(row)})
@@ -578,8 +582,9 @@ class Handler(SimpleHTTPRequestHandler):
             except (TypeError, ValueError):
                 pass
             with db() as c:
-                c.execute('UPDATE users SET lat=?, lng=?, label=?, accuracy=?, updated_at=? WHERE email=?',
-                          (lat, lng, label, acc, time.time(), u['email']))
+                c.execute('UPDATE users SET lat=?, lng=?, label=?, accuracy=?, updated_at=?, '
+                          "presence='activo', presence_at=? WHERE email=?",
+                          (lat, lng, label, acc, time.time(), time.time(), u['email']))
                 row = c.execute('SELECT * FROM users WHERE email=?', (u['email'],)).fetchone()
             publish({'type': 'user-update', 'user': public_user(row)})
             return self._json(200, {'ok': True})
@@ -648,6 +653,17 @@ class Handler(SimpleHTTPRequestHandler):
             except Exception as e:
                 print('[google] error route: %s' % e)
                 return self._json(502, {'error': 'google-error'})
+
+        if path == '/api/presence':
+            state = body.get('state')
+            if state not in ('activo', 'pausado'):
+                return self._json(400, {'error': 'estado-invalido'})
+            with db() as c:
+                c.execute('UPDATE users SET presence=?, presence_at=? WHERE email=?',
+                          (state, time.time(), u['email']))
+                row = c.execute('SELECT * FROM users WHERE email=?', (u['email'],)).fetchone()
+            publish({'type': 'user-update', 'user': public_user(row)})
+            return self._json(200, {'ok': True})
 
         if path == '/api/consent':
             # el usuario autoriza compartir su ubicacion en tiempo real
