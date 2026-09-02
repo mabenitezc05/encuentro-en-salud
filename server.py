@@ -77,6 +77,10 @@ CAP_RUTAS = int(os.environ.get('GOOGLE_CAP_RUTAS', '150'))        # computeRoute
 CAP_ELEMENTOS = int(os.environ.get('GOOGLE_CAP_ELEMENTOS', '2000'))  # elementos matriz/dia
 CAP_FOTOS = int(os.environ.get('GOOGLE_CAP_FOTOS', '120'))        # busquedas de foto/dia
 
+class BudgetAgotado(Exception):
+    pass
+
+
 _budget = {'day': '', 'route': 0, 'elem': 0, 'photo': 0}
 
 
@@ -359,7 +363,16 @@ def google_place_photo(pkey, query):
 
 
 def google_route(olat, olng, dlat, dlng, mode, departure_ms):
-    """Ruta única con polilínea para dibujar en el mapa."""
+    """Ruta única con polilínea. Cacheada: repetir un clic no gasta cupo."""
+    key = 'R|%.4f,%.4f|%.4f,%.4f|%s|%s|%d' % (
+        olat, olng, dlat, dlng, mode, departure_ms or 'now',
+        int(time.time() // 180))
+    with _lock:
+        hit = _route_cache.get(key)
+    if hit:
+        return hit[1]
+    if not budget_take('route', 1, CAP_RUTAS):
+        raise BudgetAgotado()
     payload = {
         'origin': {'location': {'latLng': {'latitude': olat, 'longitude': olng}}},
         'destination': {'location': {'latLng': {'latitude': dlat, 'longitude': dlng}}},
@@ -375,11 +388,14 @@ def google_route(olat, olng, dlat, dlng, mode, departure_ms):
     if not routes:
         return None
     r = routes[0]
-    return {
+    out = {
         'sec': int(str(r.get('duration', '0s')).rstrip('s') or 0),
         'm': r.get('distanceMeters', 0),
         'polyline': (r.get('polyline') or {}).get('encodedPolyline', ''),
     }
+    with _lock:
+        _route_cache[key] = (time.time(), out)
+    return out
 
 
 # ============================================================
@@ -470,6 +486,8 @@ class Handler(SimpleHTTPRequestHandler):
             return self._stream()
         if path == '/api/photo':
             return self._photo()
+        if path == '/api/ping':
+            return self._json(200, {'ok': True})
         return super().do_GET()
 
     def _photo(self):
@@ -640,13 +658,13 @@ class Handler(SimpleHTTPRequestHandler):
             if not (in_bogota(olat, olng) and in_bogota(dlat, dlng)):
                 return self._json(400, {'error': 'fuera-de-bogota'})
             mode = 'caminando' if body.get('mode') == 'caminando' else 'carro'
-            if not budget_take('route', 1, CAP_RUTAS):
-                return self._json(429, {'error': 'presupuesto-diario-agotado'})
             try:
                 r = google_route(olat, olng, dlat, dlng, mode, body.get('departure'))
                 if not r:
                     return self._json(404, {'error': 'sin-ruta'})
                 return self._json(200, r)
+            except BudgetAgotado:
+                return self._json(429, {'error': 'presupuesto-diario-agotado'})
             except urllib.error.HTTPError as e:
                 print('[google] HTTP %s en route: %s' % (e.code, e.read()[:300]))
                 return self._json(502, {'error': 'google-error'})

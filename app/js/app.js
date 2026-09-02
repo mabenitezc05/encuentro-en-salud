@@ -106,6 +106,7 @@ function enterApp(user) {
   initAvatar();
   initApp();
   if (user.role === 'admin') initAdmin();
+  setInterval(() => { fetch('/api/ping').catch(() => {}); }, 240000);
   api('/api/config').then((d) => {
     googleOn = !!d.googleRoutes;
     googleMode = d.mode || 'completo';
@@ -999,6 +1000,41 @@ function renderRecommendations() {
   });
 }
 
+/* Aviso transitorio sobre el mapa (p. ej. cuando la ruta real no llega) */
+let avisoT = null;
+function avisoMapa(txt) {
+  let el = $('map-aviso');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'map-aviso';
+    el.className = 'map-aviso';
+    document.getElementById('map').appendChild(el);
+  }
+  el.textContent = txt;
+  el.classList.add('on');
+  clearTimeout(avisoT);
+  avisoT = setTimeout(() => el.classList.remove('on'), 4500);
+}
+
+const routeCache = {};   // clave origen|destino|modo|hora -> respuesta de /api/route
+
+function aplicarRuta(s, id, pan, r) {
+  if (state.selectedId !== id) return;
+  if (r.sec) {
+    gEta = gEta || {};
+    gEta[s.id] = { sec: r.sec, m: r.m };
+    renderRecommendations();
+    if (markers[id].isPopupOpen()) markers[id].setPopupContent(popupHtml(s));
+  }
+  if (!r.polyline) return;
+  const pts = decodePolyline(r.polyline);
+  if (pts.length < 2) return;
+  if (routeLine) routeLine.remove();
+  routeLine = L.polyline(pts, { color: '#0055a5', weight: 4.5, opacity: 0.85 }).addTo(map);
+  if (pan) map.fitBounds(routeLine.getBounds(), { padding: [60, 60] });
+  startTravel(pts);
+}
+
 function selectSite(id, pan) {
   state.selectedId = id;
   const s = SITES.find((x) => x.id === id);
@@ -1014,27 +1050,29 @@ function selectSite(id, pan) {
     if (pan) map.fitBounds(routeLine.getBounds(), { padding: [60, 60] });
     startTravel(recta);
     if (googleOn) {
-      api('/api/route', 'POST', {
-        olat: state.user.lat, olng: state.user.lng,
-        dlat: s.lat, dlng: s.lng,
-        mode: state.modo, departure: departureMs(),
-      }).then((r) => {
-        if (state.selectedId !== id) return; // ya cambió la selección
-        // guardar el tiempo real de Google para este sitio (alimenta tarjeta y popup)
-        if (r.sec) {
-          gEta = gEta || {};
-          gEta[s.id] = { sec: r.sec, m: r.m };
-          renderRecommendations();
-          if (markers[id].isPopupOpen()) markers[id].setPopupContent(popupHtml(s));
-        }
-        if (!r.polyline) return;
-        const pts = decodePolyline(r.polyline);
-        if (pts.length < 2) return;
-        if (routeLine) routeLine.remove();
-        routeLine = L.polyline(pts, { color: '#0055a5', weight: 4.5, opacity: 0.85 }).addTo(map);
-        if (pan) map.fitBounds(routeLine.getBounds(), { padding: [60, 60] });
-        startTravel(pts);   // reiniciar el viaje sobre la ruta real
-      }).catch(() => { /* se queda la línea recta */ });
+      const rk = s.id + '|' + state.user.lat.toFixed(4) + ',' + state.user.lng.toFixed(4) +
+        '|' + state.modo + '|' + (departureMs() || 'now');
+      if (routeCache[rk]) {
+        aplicarRuta(s, id, pan, routeCache[rk]);   // instantáneo: sin red ni cupo
+      } else {
+        // si Google tarda, avisar que estamos calculando
+        const lento = setTimeout(() => avisoMapa('Calculando la ruta real…'), 800);
+        api('/api/route', 'POST', {
+          olat: state.user.lat, olng: state.user.lng,
+          dlat: s.lat, dlng: s.lng,
+          mode: state.modo, departure: departureMs(),
+        }).then((r) => {
+          clearTimeout(lento);
+          routeCache[rk] = r;
+          aplicarRuta(s, id, pan, r);
+        }).catch((e) => {
+          clearTimeout(lento);
+          // la línea recta queda como aproximación, pero se dice claramente
+          avisoMapa(e && e.message === 'presupuesto-diario-agotado'
+            ? 'Ruta aproximada: se agotó el cupo diario de rutas reales'
+            : 'Ruta aproximada: no se pudo obtener la ruta real');
+        });
+      }
     }
   } else if (pan) {
     map.setView([s.lat, s.lng], 15);
