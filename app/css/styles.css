@@ -48,118 +48,223 @@ button { font-family: var(--cuerpo); }
 .ast { color: var(--naranja); font-weight: 800; }
 
 /* ============================================================
-   LOGIN — panel de marca + formulario
+   LOGIN — "el reverso del afiche"
+   Izquierda: tinta + afiche (protagonista). Derecha: nube + cabecera
+   de marca, tarjeta y colofón; la mariposa oficial como marca de agua
+   y una franja lima que recorre TODO el pie de pantalla — se traza al
+   cargar y "llega" al formulario.
    ============================================================ */
 .login-screen {
-  height: 100vh; height: 100dvh; display: grid; grid-template-columns: 1.1fr 1fr;
+  --side-w: min(420px, 88%);
+  height: 100vh; height: 100dvh;
+  display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
   background: var(--nube);
 }
+
+/* --- lado izquierdo: el afiche ------------------------------- */
 .login-hero {
-  background: var(--tinta);
-  color: var(--blanco);
-  padding: 36px;
+  background: var(--tinta); color: var(--blanco);
+  padding: 36px 40px 46px;
   display: flex; align-items: center; justify-content: center;
   position: relative; overflow: hidden;
 }
 .hero-poster {
-  max-width: 100%; max-height: calc(100dvh - 96px);
-  border-radius: 18px; box-shadow: 0 18px 50px rgba(0,0,0,.45);
+  max-width: 100%;
+  max-height: calc(100vh - 92px); max-height: calc(100dvh - 92px);
+  border-radius: 18px;
+  /* hairline blanco al 7 %: define el borde del afiche sobre la tinta */
+  box-shadow: 0 0 0 1px rgba(255,255,255,.07), 0 18px 50px rgba(0,0,0,.45);
+  animation: poster-in .64s cubic-bezier(.2,.7,.2,1) both;
 }
-.hero-logo {
-  width: 96px; height: 96px; border-radius: 50%; background: var(--blanco);
-  display: flex; align-items: center; justify-content: center; margin-bottom: 34px;
-  box-shadow: 0 8px 30px rgba(0,0,0,.3);
-  animation: logo-float 5s ease-in-out infinite;
-}
-.hero-logo img { width: 58px; height: 58px; object-fit: contain; }
-@keyframes logo-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .hero-logo { animation: none; }
-}
-.brand-txt-short { display: none; }
-.brand-pill {
-  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
-  background: var(--blanco); border-radius: 20px; padding: 4px 12px 4px 8px;
-}
-.brand-pill img { width: 21px; height: 17px; object-fit: contain; }
-.brand-pill b { font-family: var(--cuerpo); font-size: 12.5px; font-weight: 800; color: var(--tinta); letter-spacing: .01em; }
-.hero-eyebrow {
-  font-size: 15px; color: #B9CCDE; letter-spacing: .02em; margin-bottom: 6px;
-}
-.hero-title {
-  font-family: var(--display);
-  font-size: clamp(34px, 3.6vw, 50px);
-  font-weight: 700; line-height: 1.06; letter-spacing: -0.02em;
-  margin-bottom: 20px; display: flex; flex-direction: column;
-}
-.hero-viii {
-  font-size: clamp(72px, 8.5vw, 118px); font-weight: 800; line-height: .95;
-  letter-spacing: .01em;
-}
-.hero-lima { color: var(--lima); }
-.hero-anio { font-weight: 800; }
-.hero-fecha {
-  display: inline-flex; align-self: flex-start; align-items: center;
-  background: var(--azul); color: var(--blanco); font-size: 16px; font-weight: 600;
-  padding: 11px 22px; border-radius: 28px; margin-bottom: 26px;
-}
-.hero-fecha b { color: var(--lima); font-weight: 800; }
 .login-hero::after {
   content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 10px;
   background: var(--lima);
+  transform-origin: left center;
+  animation: stripe-draw .7s cubic-bezier(.65,0,.35,1) .38s backwards;  /* la línea se traza */
 }
-.hero-sub {
-  font-size: 17px; line-height: 1.55; color: #B9CCDE; max-width: 42ch;
-  margin-bottom: 40px;
+
+/* --- lado derecho: cabecera, tarjeta, colofón, franja ---------- */
+.login-side {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 22px; padding: 40px 32px 0;
+  overflow: hidden auto;   /* scroll propio si el contenido supera la altura */
+  /* marca de agua: mariposa oficial al 8 %, recortada por la esquina inferior derecha */
+  background:
+    linear-gradient(rgba(238,244,250,.92), rgba(238,244,250,.92)),
+    url(../img/mariposa_oficial.png) right -110px bottom -60px / 520px auto no-repeat,
+    var(--nube);
 }
-.hero-facts { list-style: none; display: flex; gap: 34px; }
-.hero-facts li { font-size: 13px; color: #8FA9C2; }
-.hero-facts b {
-  display: block; font-family: var(--datos); font-size: 26px; font-weight: 600;
-  color: var(--blanco); margin-bottom: 2px;
+/* centrado vertical "seguro": si el contenido no cabe, arranca arriba y se desplaza */
+.side-mast { margin-top: auto; }
+.side-colophon { margin-bottom: auto; }
+.side-mast, .login-card, .side-colophon { width: var(--side-w); }
+
+/* franja lima del lado derecho: pegajosa al pie; aparece cuando termina el trazo izquierdo */
+.login-side::after {
+  content: ''; position: sticky; bottom: 0; z-index: 2;
+  flex-shrink: 0; align-self: stretch; height: 10px; margin: 0 -32px;
+  background: var(--lima);
+  animation: fade-in .3s ease-out 1.08s backwards;
 }
+
+/* cabecera: mariposa + Colsanitas (mismo lockup que la barra) + nombre del evento */
+.side-mast {
+  display: flex; align-items: center; gap: 14px;
+  animation: rise-in .42s cubic-bezier(.2,.7,.2,1) .1s both;
+}
+.mast-mark { width: 44px; height: 36px; object-fit: contain; flex-shrink: 0; }
+.mast-brand {
+  display: block; font-family: var(--cuerpo); font-size: 12.5px; font-weight: 800;
+  letter-spacing: .01em; color: var(--tinta); line-height: 1.1;
+}
+.mast-event {
+  margin-top: 3px; font-family: var(--display); font-size: 20px; font-weight: 700;
+  letter-spacing: -.01em; line-height: 1.15; color: var(--tinta);
+}
+.mast-event b { font-weight: 800; color: var(--azul); }
+
+/* tarjeta */
 .login-card {
-  align-self: center; justify-self: center;
-  width: min(420px, 88%);
-  background: var(--blanco); border-radius: var(--r-panel);
-  padding: 38px 36px; box-shadow: var(--sombra);
+  background: var(--blanco); border: 1px solid var(--linea); border-radius: var(--r-panel);
+  padding: 34px 36px 30px; box-shadow: var(--sombra);
+  animation: rise-in .5s cubic-bezier(.2,.7,.2,1) .18s both;
 }
+
+/* pestañas con indicador deslizante (la clase .active la pone setRegisterMode) */
 .login-tabs {
-  display: flex; gap: 6px; background: var(--nube); padding: 4px;
+  position: relative; display: flex; gap: 6px; background: var(--nube); padding: 4px;
   border-radius: 12px; margin-bottom: 22px;
 }
 .tab {
-  flex: 1; border: 0; background: transparent; padding: 10px; border-radius: 9px;
-  font-size: 14px; cursor: pointer; color: var(--tinta-60); font-weight: 600;
+  position: relative; z-index: 1; flex: 1; border: 0; background: transparent;
+  padding: 10px; border-radius: 9px; font-size: 14px; cursor: pointer;
+  color: var(--tinta-60); font-weight: 600; transition: color .22s ease;
 }
+.tab:hover { color: var(--tinta); }
+.tab:focus-visible { outline-offset: -3px; border-radius: 9px; }
+/* fallback sin :has — la pestaña activa se pinta a sí misma */
 .tab.active { background: var(--blanco); color: var(--azul); box-shadow: 0 1px 4px rgba(11,45,77,.14); }
+@supports selector(:has(*)) {
+  .tab.active { background: transparent; box-shadow: none; }
+  .login-tabs::before {
+    content: ''; position: absolute; top: 4px; bottom: 4px; left: 4px;
+    width: calc(50% - 7px); border-radius: 9px;
+    background: var(--blanco); box-shadow: 0 1px 4px rgba(11,45,77,.14);
+    transition: transform .26s cubic-bezier(.2,.7,.2,1);
+  }
+  .login-tabs:has(#tab-register.active)::before { transform: translateX(calc(100% + 6px)); }
+}
+
+/* campos: la etiqueta acompaña al campo enfocado */
 #login-form label {
   display: block; font-size: 13px; font-weight: 600; color: var(--tinta-60);
-  margin-bottom: 15px;
+  margin-bottom: 15px; transition: color .2s ease;
 }
+#login-form label:focus-within { color: var(--azul); }
 #login-form input {
   width: 100%; margin-top: 6px; padding: 12px 13px;
   border: 1.5px solid var(--linea); border-radius: var(--r-item);
   font-size: 15px; font-family: var(--cuerpo); color: var(--tinta);
-  outline: none; transition: border-color .15s;
-  background: var(--blanco);
+  outline: none; background: var(--blanco);
+  transition: border-color .2s ease, box-shadow .2s ease;
 }
-#login-form input:focus { border-color: var(--azul); }
+#login-form input:hover { border-color: rgba(0,94,184,.45); }
+#login-form input:focus { border-color: var(--azul); box-shadow: 0 0 0 4px rgba(0,94,184,.14); }
+
+/* consentimiento: caja marcable; al aceptar se confirma en lima (lima solo como línea/fondo) */
+#login-form .consent-check {
+  display: flex; gap: 10px; align-items: flex-start;
+  font-weight: 500; line-height: 1.45; color: var(--tinta-60);
+  padding: 11px 12px; border: 1.5px solid var(--linea); border-radius: var(--r-item);
+  background: var(--nube); transition: border-color .2s ease, background .2s ease, color .2s ease;
+}
+#login-form .consent-check span { font-size: 12px; }
+#login-form .consent-check input {
+  width: 16px; height: 16px; margin: 2px 0 0; padding: 0; flex-shrink: 0;
+  accent-color: var(--azul); box-shadow: none;
+}
+#login-form .consent-check:has(input:checked) {
+  border-color: var(--lima); background: var(--lima-suave); color: var(--tinta);
+}
+
+/* registro: el bloque se despliega con altura real (grid-template-rows 0fr → 1fr) */
+#register-fields {
+  display: grid; grid-template-rows: 1fr;
+  transition: grid-template-rows .36s cubic-bezier(.2,.7,.2,1), visibility 0s;
+}
+#register-fields > .register-inner {
+  min-height: 0; overflow: hidden;
+  margin: 0 -6px; padding: 0 6px;   /* deja sitio al halo de foco */
+}
+#register-fields.collapsed {
+  grid-template-rows: 0fr; visibility: hidden;
+  transition: grid-template-rows .3s cubic-bezier(.65,0,.35,1), visibility 0s .3s;
+}
+
+/* botón (la regla global .btn-primary la usan también los modales) */
 .btn-primary {
   width: 100%; padding: 13px; border: 0; border-radius: var(--r-item); cursor: pointer;
   background: var(--azul); color: var(--blanco); font-size: 15px; font-weight: 700;
   transition: background .15s;
 }
 .btn-primary:hover { background: var(--azul-hover); }
+#login-submit {
+  margin-top: 4px;
+  transition: background .2s ease, transform .2s ease, box-shadow .2s ease, opacity .2s ease;
+}
+#login-submit:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(0,94,184,.22); }
+#login-submit:active { transform: translateY(0) scale(.99); box-shadow: none; }
+#login-submit:disabled { opacity: .75; cursor: progress; transform: none; box-shadow: none; }
+
+/* error */
 .login-error {
   background: var(--rojo-suave); color: var(--rojo); font-size: 13px;
   padding: 10px 12px; border-radius: 9px; margin-bottom: 13px;
+  border-left: 3px solid var(--rojo);
 }
-.login-hint { text-align: center; font-size: 12px; color: var(--tinta-60); margin-top: 14px; line-height: 1.7; }
-.login-hint code { font-family: var(--datos); font-size: 11px; background: var(--nube); padding: 2px 6px; border-radius: 5px; }
+.login-error:not(.hidden) { animation: err-in .3s ease-out both; }
+
+/* credenciales demo/admin: separadas por un hilo */
+.login-hint {
+  margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--linea);
+  text-align: center; font-size: 12px; color: var(--tinta-60); line-height: 1.8;
+}
+.login-hint code {
+  font-family: var(--datos); font-size: 11px; color: var(--tinta);
+  background: var(--nube); padding: 2px 6px; border-radius: 5px;
+}
+
+/* colofón: fecha y ciudad en mono, con un punto lima */
+.side-colophon {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding-bottom: 48px;
+  font-family: var(--datos); font-size: 11.5px; letter-spacing: .02em; color: var(--tinta-60);
+  animation: fade-in .42s ease-out .3s both;
+}
+.side-colophon i { width: 6px; height: 6px; border-radius: 50%; background: var(--lima); }
+
+/* movimiento: entradas escalonadas (todo ≤ 700 ms, cadena ≈ 1,1 s) */
+@keyframes poster-in   { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes rise-in     { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes fade-in     { from { opacity: 0; } to { opacity: 1; } }
+@keyframes err-in      { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes stripe-draw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-poster, .side-mast, .login-card, .side-colophon, .login-error,
+  .login-hero::after, .login-side::after { animation: none !important; }
+  .login-tabs::before, .tab, #login-form label, #login-form input, #login-submit,
+  #register-fields, #register-fields.collapsed, #login-form .consent-check { transition: none !important; }
+  #login-submit:hover { transform: none; }
+}
+
+/* portátiles bajos: menos aire, la tarjeta manda */
+@media (min-width: 921px) and (max-height: 720px) {
+  .login-side { padding-top: 24px; gap: 16px; }
+  .login-card { padding: 26px 30px 24px; }
+  .side-colophon { padding-bottom: 28px; }
+}
 
 /* ============================================================
    APP
@@ -174,6 +279,13 @@ button { font-family: var(--cuerpo); }
   font-family: var(--display); font-weight: 700; font-size: 19px; letter-spacing: -0.01em;
   display: flex; align-items: center; gap: 10px;
 }
+.brand-txt-short { display: none; }
+.brand-pill {
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+  background: var(--blanco); border-radius: 20px; padding: 4px 12px 4px 8px;
+}
+.brand-pill img { width: 21px; height: 17px; object-fit: contain; }
+.brand-pill b { font-family: var(--cuerpo); font-size: 12.5px; font-weight: 800; color: var(--tinta); letter-spacing: .01em; }
 .anio-chip {
   font-family: var(--datos); background: var(--lima); color: var(--tinta);
   font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 20px;
@@ -539,7 +651,13 @@ button { font-family: var(--cuerpo); }
     display: block;               /* filas en flujo normal: el scroll las recorre */
   }
   .login-hero { padding: 44px 28px 52px; min-height: auto; justify-content: flex-start; }
-  .login-card { margin: 26px auto 40px; }
+  .login-side {
+    padding: 30px 20px 0; gap: 18px; overflow: visible;
+    background-size: 340px auto; background-position: right -90px bottom -40px;
+  }
+  .side-mast, .side-colophon { margin: 0; }                 /* apilado: sin centrado vertical */
+  .login-side::after { position: static; margin: 0 -20px; } /* franja estática al pie del bloque */
+  .side-colophon { padding-bottom: 40px; }
   .layout { flex-direction: column-reverse; }
   .sidebar { width: 100%; min-width: 0; max-height: 55vh; max-height: 55dvh; }
   #map { min-height: 45vh; min-height: 45dvh; }
@@ -595,7 +713,16 @@ button { font-family: var(--cuerpo); }
   /* héroe del login a escala de teléfono */
   .login-hero { padding: 18px 14px 24px; }
   .hero-poster { max-height: none; border-radius: 14px; }
-  .login-card { padding: 26px 20px; width: min(420px, 92%); }
+  .login-screen { --side-w: min(420px, 92%); }
+  .login-side {
+    padding: 24px 14px 0; gap: 16px;
+    background-size: 260px auto; background-position: right -70px bottom -30px;
+  }
+  .login-side::after { margin: 0 -14px; }
+  .login-card { padding: 26px 20px 24px; }
+  .mast-mark { width: 38px; height: 31px; }
+  .mast-event { font-size: 18px; }
+  .side-colophon { padding-bottom: 34px; }
 
   /* modales a pantalla de teléfono */
   .modal { width: min(370px, 94vw); padding: 20px 18px; max-height: 88dvh; }

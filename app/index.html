@@ -18,34 +18,46 @@
     <img class="hero-poster" src="img/encuentro.jpg"
          alt="VIII Encuentro Nacional de Salud 2026 — Colsanitas, 17 y 18 de septiembre">
   </div>
-  <div class="login-card">
-    <div class="login-tabs">
-      <button id="tab-login" class="tab active">Ingresar</button>
-      <button id="tab-register" class="tab">Registrarme</button>
-    </div>
-    <form id="login-form" autocomplete="off">
-      <div id="register-fields" class="hidden">
-        <label>Nombre completo
-          <input type="text" id="reg-name" placeholder="Ej: María Benítez">
-        </label>
-        <label class="consent-check">
-          <input type="checkbox" id="reg-consent">
-          <span>Acepto el tratamiento de mis datos personales (nombre, correo y ubicación)
-          para recibir recomendaciones de puntos de atención y permitir su supervisión
-          por el administrador del sistema (Ley 1581 de 2012).</span>
-        </label>
+  <div class="login-side">
+    <header class="side-mast">
+      <img class="mast-mark" src="img/mariposa_oficial.png" alt="">
+      <div>
+        <span class="mast-brand">Colsanitas</span>
+        <h1 class="mast-event">VIII Encuentro Nacional de Salud <b>2026</b></h1>
       </div>
-      <label>Correo electrónico
-        <input type="email" id="login-email" placeholder="correo@ejemplo.com" required>
-      </label>
-      <label>Contraseña
-        <input type="password" id="login-pass" placeholder="••••••••" required minlength="6">
-      </label>
-      <div id="login-error" class="login-error hidden"></div>
-      <button type="submit" class="btn-primary" id="login-submit">Ingresar</button>
-      <p class="login-hint">Demo: <code>demo@colsanitas.com</code> / <code>demo123</code><br>
-      Admin: <code>admin@colsanitas.com</code> (contraseña en la consola del servidor)</p>
-    </form>
+    </header>
+    <div class="login-card">
+      <div class="login-tabs">
+        <button id="tab-login" class="tab active" aria-pressed="true">Ingresar</button>
+        <button id="tab-register" class="tab" aria-pressed="false">Registrarme</button>
+      </div>
+      <form id="login-form" autocomplete="off">
+        <div id="register-fields" class="collapsed">
+          <div class="register-inner">
+            <label>Nombre completo
+              <input type="text" id="reg-name" placeholder="Ej: María Benítez">
+            </label>
+            <label class="consent-check">
+              <input type="checkbox" id="reg-consent">
+              <span>Acepto el tratamiento de mis datos personales (nombre, correo y ubicación)
+              para recibir recomendaciones de puntos de atención y permitir su supervisión
+              por el administrador del sistema (Ley 1581 de 2012).</span>
+            </label>
+          </div>
+        </div>
+        <label>Correo electrónico
+          <input type="email" id="login-email" placeholder="correo@ejemplo.com" required>
+        </label>
+        <label>Contraseña
+          <input type="password" id="login-pass" placeholder="••••••••" required minlength="6">
+        </label>
+        <div id="login-error" class="login-error hidden" role="alert"></div>
+        <button type="submit" class="btn-primary" id="login-submit">Ingresar</button>
+        <p class="login-hint">Demo: <code>demo@colsanitas.com</code> / <code>demo123</code><br>
+        Admin: <code>admin@colsanitas.com</code> (contraseña en la consola del servidor)</p>
+      </form>
+    </div>
+    <p class="side-colophon"><span>17 y 18 de septiembre</span><i aria-hidden="true"></i><span>Bogotá</span></p>
   </div>
 </div>
 

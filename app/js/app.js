@@ -38,7 +38,9 @@ function setRegisterMode(on) {
   registerMode = on;
   $('tab-login').classList.toggle('active', !on);
   $('tab-register').classList.toggle('active', on);
-  $('register-fields').classList.toggle('hidden', !on);
+  $('tab-login').setAttribute('aria-pressed', String(!on));
+  $('tab-register').setAttribute('aria-pressed', String(on));
+  $('register-fields').classList.toggle('collapsed', !on);   // se despliega con altura real (CSS)
   $('login-submit').textContent = on ? 'Crear cuenta e ingresar' : 'Ingresar';
   $('login-error').classList.add('hidden');
 }
@@ -47,6 +49,9 @@ $('login-form').addEventListener('submit', async (ev) => {
   ev.preventDefault();
   const errEl = $('login-error');
   errEl.classList.add('hidden');
+  void errEl.offsetWidth;            // reinicia la animación del error si se repite
+  const btn = $('login-submit');
+  btn.disabled = true;               // estado "enviando": evita el doble envío
   const email = $('login-email').value.trim().toLowerCase();
   const pass = $('login-pass').value;
   try {
@@ -65,6 +70,8 @@ $('login-form').addEventListener('submit', async (ev) => {
   } catch (e) {
     errEl.textContent = e.message;
     errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
   }
 });
 
