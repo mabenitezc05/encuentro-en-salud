@@ -53,9 +53,9 @@ LOGIN_WINDOW = 600               # 10 minutos
 
 EMAIL_RE = re.compile(r'^[^@\s]{1,64}@[^@\s]{1,190}\.[a-zA-Z]{2,24}$')
 
-# --- Bogotá aprox. para validar coordenadas reportadas ---
-LAT_MIN, LAT_MAX = 3.5, 5.6
-LNG_MIN, LNG_MAX = -75.0, -73.4
+# --- Colombia (continental) para validar coordenadas reportadas ---
+LAT_MIN, LAT_MAX = -4.3, 13.6
+LNG_MIN, LNG_MAX = -79.1, -66.8
 
 # --- Google Routes API (opcional). La clave SOLO vive en el servidor. ---
 GOOGLE_KEY = os.environ.get('GOOGLE_MAPS_API_KEY', '').strip()
@@ -282,7 +282,7 @@ def waypoint(lat, lng):
     return {'waypoint': {'location': {'latLng': {'latitude': lat, 'longitude': lng}}}}
 
 
-def in_bogota(lat, lng):
+def in_colombia(lat, lng):
     return LAT_MIN <= lat <= LAT_MAX and LNG_MIN <= lng <= LNG_MAX
 
 
@@ -588,7 +588,7 @@ class Handler(SimpleHTTPRequestHandler):
             except (TypeError, ValueError):
                 return self._json(400, {'error': 'coordenadas-invalidas'})
             if not (LAT_MIN <= lat <= LAT_MAX and LNG_MIN <= lng <= LNG_MAX):
-                return self._json(400, {'error': 'fuera-de-bogota'})
+                return self._json(400, {'error': 'fuera-de-cobertura'})
             if not u['loc_consent_at']:
                 return self._json(403, {'error': 'sin-consentimiento-ubicacion'})
             label = str(body.get('label') or '')[:200]
@@ -624,13 +624,13 @@ class Handler(SimpleHTTPRequestHandler):
             try:
                 for d in dests_raw:
                     a, b = float(d[0]), float(d[1])
-                    if not in_bogota(a, b):
-                        return self._json(400, {'error': 'destino-fuera-de-bogota'})
+                    if not in_colombia(a, b):
+                        return self._json(400, {'error': 'destino-fuera-de-cobertura'})
                     dests.append((a, b))
             except (TypeError, ValueError, IndexError):
                 return self._json(400, {'error': 'destinos-invalidos'})
-            if not in_bogota(olat, olng):
-                return self._json(400, {'error': 'fuera-de-bogota'})
+            if not in_colombia(olat, olng):
+                return self._json(400, {'error': 'fuera-de-cobertura'})
             mode = 'caminando' if body.get('mode') == 'caminando' else 'carro'
             limit = GOOGLE_TOP_N if GOOGLE_MODE == 'top' else MAX_DESTINATIONS
             dests = dests[:limit]
@@ -655,8 +655,8 @@ class Handler(SimpleHTTPRequestHandler):
                 dlat, dlng = float(body.get('dlat')), float(body.get('dlng'))
             except (TypeError, ValueError):
                 return self._json(400, {'error': 'coordenadas-invalidas'})
-            if not (in_bogota(olat, olng) and in_bogota(dlat, dlng)):
-                return self._json(400, {'error': 'fuera-de-bogota'})
+            if not (in_colombia(olat, olng) and in_colombia(dlat, dlng)):
+                return self._json(400, {'error': 'fuera-de-cobertura'})
             mode = 'caminando' if body.get('mode') == 'caminando' else 'carro'
             try:
                 r = google_route(olat, olng, dlat, dlng, mode, body.get('departure'))

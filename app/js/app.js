@@ -126,6 +126,7 @@ let gEta = null;           // {siteId: {sec, m}} tiempos reales recibidos
 let gEtaKey = '';          // clave de la matriz vigente (origen+modo+hora)
 let gEtaAt = 0;
 let gEtaFetching = false;
+let gCalib = 1;   // corrección del modelo local según el ratio Google/local observado
 
 function departureMs() {
   return (state.cuando === 'otra' && state.customDate)
@@ -156,7 +157,7 @@ function updateEtaSource() {
 function maybeFetchMatrix() {
   if (!googleOn || !state.user || gEtaFetching) return;
   const key = state.user.lat.toFixed(4) + ',' + state.user.lng.toFixed(4) +
-    '|' + state.modo + '|' + (departureMs() || 'now');
+    '|' + state.modo + '|' + state.tipo + '|' + (departureMs() || 'now');
   if (googleMode === 'seleccion') {
     // sin matriz: solo invalidar los tiempos por-selección si cambió el contexto
     if (key !== gEtaKey) { gEta = null; gEtaKey = key; }
@@ -164,12 +165,23 @@ function maybeFetchMatrix() {
   }
   if (key === gEtaKey && Date.now() - gEtaAt < 120000) return; // matriz vigente
   gEtaFetching = true;
-  // en modo "top": solo los N sitios más cercanos en línea recta
+  // en modo "top": pedir Google para los N mejores del RANKING PRELIMINAR
+  // (mismo criterio que la lista: tiempo local calibrado + estado del horario),
+  // así las tarjetas visibles siempre llevan tiempos reales de Google
   let idxs = SITES.map((_, i) => i);
   if (googleMode === 'top') {
+    const d0 = refDate();
     idxs = SITES
-      .map((s, i) => ({ i, d: haversineKm(state.user.lat, state.user.lng, s.lat, s.lng) }))
-      .sort((a, b) => a.d - b.d)
+      .map((s, i) => {
+        if (state.tipo !== 'todos' && s.tipo !== state.tipo) return null;
+        const eta = etaMin(haversineKm(state.user.lat, state.user.lng, s.lat, s.lng), state.modo, d0) * gCalib;
+        const st = siteStatus(s, d0);
+        let pts = 100 - Math.min(60, eta) * 1.05;
+        if (!st.open) pts -= st.opensToday ? 35 : 55;
+        return { i, pts, eta };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.pts - a.pts || a.eta - b.eta)
       .slice(0, googleTopN)
       .map((x) => x.i);
   }
@@ -184,6 +196,20 @@ function maybeFetchMatrix() {
       if (s) map_[s.id] = { sec: r.sec, m: r.m };
     });
     gEta = map_;
+    // calibrar el modelo local con la mediana del ratio Google/local:
+    // así los sitios fuera del top también muestran tiempos realistas
+    const d0 = refDate();
+    const ratios = [];
+    d.results.forEach((r) => {
+      const st = SITES[idxs[r.i]];
+      if (!st) return;
+      const local = etaMin(haversineKm(state.user.lat, state.user.lng, st.lat, st.lng), state.modo, d0);
+      if (local > 0.5) ratios.push((r.sec / 60) / local);
+    });
+    ratios.sort((a, b) => a - b);
+    gCalib = ratios.length
+      ? Math.min(2.5, Math.max(0.7, ratios[Math.floor(ratios.length / 2)]))
+      : 1;
     gEtaKey = key;
     gEtaAt = Date.now();
     updateEtaSource();
@@ -665,8 +691,8 @@ function evalSite(s, d) {
     eta = g.sec / 60;
     distKm = g.m / 1000;
     fuente = 'google';
-  } else {                                   // modelo heurístico local
-    eta = etaMin(km, state.modo, d);
+  } else {                                   // modelo local calibrado con Google
+    eta = etaMin(km, state.modo, d) * gCalib;
     distKm = km * FACTOR_RUTA;
     fuente = 'local';
   }
@@ -910,8 +936,8 @@ async function fetchSuggestions(q) {
   if (acAbort) acAbort.abort();
   acAbort = new AbortController();
   const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&accept-language=es' +
-    '&countrycodes=co&bounded=1&viewbox=' + BOGOTA_VIEWBOX +
-    '&q=' + encodeURIComponent(q + ', Bogotá, Colombia');
+    '&countrycodes=co&viewbox=' + BOGOTA_VIEWBOX +
+    '&q=' + encodeURIComponent(q + ', Colombia');
   try {
     const r = await fetch(url, { signal: acAbort.signal, headers: { 'Accept': 'application/json' } });
     const list = await r.json();
@@ -1320,8 +1346,13 @@ function refresh() {
   renderRecommendations();
   const d = refDate();
   SITES.forEach((s) => {
+    const m = markers[s.id];
+    const visible = state.tipo === 'todos' || s.tipo === state.tipo;
+    if (visible && !map.hasLayer(m)) m.addTo(map);       // prender
+    else if (!visible && map.hasLayer(m)) m.remove();    // apagar
+    if (!visible) return;
     const st = siteStatus(s, d);
-    const el = markers[s.id].getElement();
+    const el = m.getElement();
     if (el && el.firstChild) el.firstChild.classList.toggle('pin-closed', !st.open);
   });
 }
