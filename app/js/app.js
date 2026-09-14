@@ -1333,18 +1333,71 @@ bindSeg('seg-modo', 'modo', () => {
   // al cambiar carro <-> a pie, recalcular la ruta y la animación del punto elegido
   if (state.selectedId) selectSite(state.selectedId, false);
 });
+/* Selector "Otra hora": chips de día (Hoy/Mañana/…) + hora en pasos de 30 min
+ * + resumen con el nivel de tráfico del momento elegido. */
+const dtSel = { offset: 0, min: null };
+const DIA_CORTO = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+
+function buildDtPanel() {
+  const dias = $('dt-dias');
+  dias.innerHTML = '';
+  const hoy = new Date();
+  for (let o = 0; o < 7; o++) {
+    const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + o);
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'dt-dia' + (isFestivo(d) ? ' festivo' : '');
+    b.dataset.o = o;
+    b.innerHTML = o === 0 ? 'Hoy' : o === 1 ? 'Mañana'
+      : DIA_CORTO[d.getDay()] + ' <b>' + d.getDate() + '</b>';
+    if (isFestivo(d)) b.title = 'Día festivo';
+    b.addEventListener('click', () => { dtSel.offset = o; aplicarDt(); });
+    dias.appendChild(b);
+  }
+  const sel = $('dt-hora');
+  if (!sel.options.length) {
+    for (let m = 0; m < 1440; m += 30) {
+      const opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = fmtHora(m);
+      sel.appendChild(opt);
+    }
+    sel.addEventListener('change', () => { dtSel.min = +sel.value; aplicarDt(); });
+  }
+  sel.value = dtSel.min;
+}
+
+function aplicarDt() {
+  $('dt-dias').querySelectorAll('.dt-dia').forEach((b) => {
+    b.classList.toggle('active', +b.dataset.o === dtSel.offset);
+  });
+  const hoy = new Date();
+  const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + dtSel.offset,
+    Math.floor(dtSel.min / 60), dtSel.min % 60);
+  const pad = (x) => String(x).padStart(2, '0');
+  state.customDate = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+    'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  const NOMBRE = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  const lbl = trafficLabel(trafficFactor(d));
+  $('dt-resumen').innerHTML =
+    '<span>' + (dtSel.offset === 0 ? 'Hoy' : dtSel.offset === 1 ? 'Mañana' : NOMBRE[d.getDay()] + ' ' + d.getDate()) +
+    ' · ' + fmtHora(dtSel.min) + (isFestivo(d) ? ' · festivo' : '') + '</span>' +
+    '<span class="dt-traf ' + lbl.cls + '">' + lbl.txt + '</span>';
+  refresh();
+}
+
 bindSeg('seg-cuando', 'cuando', (v) => {
-  $('dt-custom').classList.toggle('hidden', v !== 'otra');
-  if (v === 'otra' && !$('dt-custom').value) {
-    const n = new Date(Date.now() + 3600000);
-    n.setMinutes(0, 0, 0);
-    const pad = (x) => String(x).padStart(2, '0');
-    $('dt-custom').value = n.getFullYear() + '-' + pad(n.getMonth() + 1) + '-' + pad(n.getDate()) +
-      'T' + pad(n.getHours()) + ':' + pad(n.getMinutes());
-    state.customDate = $('dt-custom').value;
+  $('dt-panel').classList.toggle('hidden', v !== 'otra');
+  if (v === 'otra') {
+    if (dtSel.min == null) {
+      const n = new Date(Date.now() + 3600000);   // por defecto: la próxima hora en punto
+      dtSel.min = n.getHours() * 60;
+      dtSel.offset = 0;
+    }
+    buildDtPanel();
+    aplicarDt();
   }
 });
-$('dt-custom').addEventListener('change', () => { state.customDate = $('dt-custom').value; refresh(); });
 
 function refresh() {
   if (!map) return;

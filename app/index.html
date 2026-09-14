@@ -121,7 +121,11 @@
               <button data-v="ahora" class="active">Ahora</button>
               <button data-v="otra">Otra hora</button>
             </div>
-            <input type="datetime-local" id="dt-custom" class="hidden">
+            <div id="dt-panel" class="dt-panel hidden">
+              <div class="dt-dias" id="dt-dias" role="group" aria-label="Día"></div>
+              <select id="dt-hora" class="dt-select" aria-label="Hora"></select>
+              <div class="dt-resumen" id="dt-resumen"></div>
+            </div>
           </div>
         </div>
         <div id="eta-source" class="eta-source">Tiempos estimados con modelo local</div>

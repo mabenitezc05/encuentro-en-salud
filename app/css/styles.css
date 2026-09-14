@@ -373,10 +373,36 @@ button { font-family: var(--cuerpo); }
   color: var(--tinta-60); font-weight: 600; white-space: nowrap; transition: all .12s;
 }
 .seg button.active { background: var(--azul); border-color: var(--azul); color: var(--blanco); }
-#dt-custom {
-  margin-top: 8px; width: 100%; padding: 9px 11px; border: 1.5px solid var(--linea);
-  border-radius: 10px; font-size: 13px; font-family: var(--datos); color: var(--tinta);
+/* selector "Otra hora": día en chips + hora + resumen con tráfico */
+.dt-panel { margin-top: 10px; display: flex; flex-direction: column; gap: 9px; }
+.dt-dias { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
+.dt-dia {
+  flex: 0 0 auto; padding: 8px 13px; border: 1.5px solid var(--linea);
+  background: var(--blanco); border-radius: 10px; font-size: 12.5px; font-weight: 600;
+  color: var(--tinta-60); cursor: pointer; white-space: nowrap;
+  transition: background .15s, border-color .15s, color .15s;
 }
+.dt-dia b { font-weight: 800; }
+.dt-dia:hover { border-color: var(--azul); color: var(--tinta); }
+.dt-dia.active { background: var(--azul); border-color: var(--azul); color: var(--blanco); }
+.dt-dia.festivo::after {
+  content: ''; display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--lima); margin-left: 6px; vertical-align: 2px;
+}
+.dt-select {
+  width: 100%; padding: 10px 12px; border: 1.5px solid var(--linea); border-radius: 10px;
+  font-family: var(--datos); font-size: 13.5px; color: var(--tinta); background: var(--blanco);
+}
+.dt-select:focus { border-color: var(--azul); outline: none; }
+.dt-resumen {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 600; color: var(--tinta-60);
+  background: var(--nube); border-radius: 9px; padding: 8px 11px;
+}
+.dt-traf { font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 20px; white-space: nowrap; }
+.dt-resumen .traffic-bajo { background: var(--teal-suave); color: #00756F; }
+.dt-resumen .traffic-medio { background: var(--naranja-suave); color: #7A5000; }
+.dt-resumen .traffic-alto { background: var(--rojo-suave); color: var(--rojo); }
 .eta-source {
   margin-top: 11px; font-size: 11.5px; color: var(--tinta-60);
   background: var(--nube); border-radius: 9px; padding: 8px 11px;
@@ -702,7 +728,8 @@ button { font-family: var(--cuerpo); }
   .panel { padding: 13px 14px; }
 
   /* evita el zoom automático de iOS al enfocar campos */
-  #addr-input, #login-form input, #dt-custom { font-size: 16px; }
+  #addr-input, #login-form input, .dt-select { font-size: 16px; }
+  .dt-dia { padding: 11px 14px; }
 
   /* objetivos táctiles cómodos */
   .seg button { padding: 12px 6px; }
