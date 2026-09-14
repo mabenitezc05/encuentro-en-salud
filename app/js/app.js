@@ -621,9 +621,9 @@ function siteIcon(s) {
 function initApp() {
   if (map) { setTimeout(() => map.invalidateSize(), 60); return; }
   map = L.map('map').setView([4.657, -74.093], 12);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
     maxZoom: 19,
-    attribution: '&copy; OpenStreetMap contributors',
+    attribution: 'Tiles &copy; <a href="https://www.esri.com/">Esri</a>',
   }).addTo(map);
 
   SITES.forEach((s) => {

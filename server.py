@@ -100,7 +100,7 @@ CSP = (
     "script-src 'self' https://unpkg.com; "
     "style-src 'self' https://unpkg.com https://fonts.googleapis.com 'unsafe-inline'; "
     "font-src https://fonts.gstatic.com; "
-    "img-src 'self' data: https://*.tile.openstreetmap.org; "
+    "img-src 'self' data: https://server.arcgisonline.com; "
     "connect-src 'self' https://nominatim.openstreetmap.org; "
     "object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
 )
