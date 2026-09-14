@@ -1,0 +1,13 @@
+{
+  "appId": "com.colsanitas.encuentro",
+  "appName": "Encuentro en Salud",
+  "webDir": "www",
+  "backgroundColor": "#EEF4FA",
+  "server": {
+    "url": "https://encuentro-en-salud.onrender.com",
+    "allowNavigation": ["encuentro-en-salud.onrender.com"]
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

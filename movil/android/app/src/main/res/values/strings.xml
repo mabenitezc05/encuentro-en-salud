@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Encuentro en Salud</string>
+    <string name="title_activity_main">Encuentro en Salud</string>
+    <string name="package_name">com.colsanitas.encuentro</string>
+    <string name="custom_url_scheme">com.colsanitas.encuentro</string>
+</resources>

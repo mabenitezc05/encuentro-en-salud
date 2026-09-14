@@ -8,3 +8,9 @@ __pycache__/
 *.pyc
 .agents/
 .claude/
+
+# App móvil (Capacitor)
+movil/node_modules/
+movil/android/keystore.properties
+movil/android/encuentro-release.keystore
+movil/assets/logo-dark.png
