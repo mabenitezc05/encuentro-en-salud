@@ -24,6 +24,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Tu ubicación se usa para recomendarte la droguería o el centro médico más conveniente y mostrar tu posición al administrador del evento.</string>
 	<key>UIApplicationSceneManifest</key>

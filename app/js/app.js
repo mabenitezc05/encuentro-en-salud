@@ -1423,3 +1423,10 @@ function refresh() {
     enterApp(d.user);
   } catch (e) { /* sin sesión: se queda en el login */ }
 })();
+
+// PWA: registro del service worker (instalable desde el navegador)
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
