@@ -202,7 +202,10 @@ function maybeFetchMatrix() {
       const s = SITES[idxs[r.i]];
       if (s) map_[s.id] = { sec: r.sec, m: r.m };
     });
-    gEta = map_;
+    // FUSIONAR con lo ya conocido del mismo contexto (rutas reales inyectadas
+    // al seleccionar un punto): un refresco de matriz no debe "des-unificar"
+    // tiempos que ya eran de Google
+    gEta = Object.assign({}, (key === gEtaKey && gEta) ? gEta : {}, map_);
     // calibrar el modelo local con la mediana del ratio Google/local:
     // así los sitios fuera del top también muestran tiempos realistas
     const d0 = refDate();
@@ -222,10 +225,39 @@ function maybeFetchMatrix() {
     updateEtaSource();
     renderCritical();
     renderRecommendations();
+    topUpVisible(key);        // tarjetas visibles sin tiempo Google -> pedirlas
   }).catch(() => {
     gEta = null;              // el modelo local sigue funcionando
     updateEtaSource();
   }).finally(() => { gEtaFetching = false; });
+}
+
+/* El top-N se elige con el ranking preliminar local; al reordenar con los
+ * tiempos reales, alguna tarjeta visible puede quedar con tiempo local.
+ * Este complemento pide a Google SOLO esos faltantes (pocos elementos),
+ * de modo que TODA la lista visible quede unificada con el mapa. */
+let gTopUpKey = '';
+function topUpVisible(key) {
+  if (googleMode !== 'top' || gTopUpKey === key || !state.user) return;
+  const faltan = recommend().slice(0, 8)
+    .filter((r) => !(gEta && gEta[r.s.id]))
+    .map((r) => SITES.findIndex((s) => s.id === r.s.id))
+    .filter((i) => i >= 0);
+  gTopUpKey = key;                      // una sola vez por contexto
+  if (!faltan.length) return;
+  api('/api/routes', 'POST', {
+    lat: state.user.lat, lng: state.user.lng,
+    mode: state.modo, departure: departureMs(),
+    destinations: faltan.map((i) => [SITES[i].lat, SITES[i].lng]),
+  }).then((d) => {
+    if (key !== gEtaKey) return;        // el contexto ya cambió
+    d.results.forEach((r) => {
+      const s = SITES[faltan[r.i]];
+      if (s) gEta[s.id] = { sec: r.sec, m: r.m };
+    });
+    renderCritical();
+    renderRecommendations();
+  }).catch(() => {});
 }
 
 /** Decodificador estándar de polilíneas de Google */
@@ -792,11 +824,21 @@ function tryGeolocate(silent) {
       gpsAccuracy = accuracy || null;
       let label = 'Mi ubicación actual (GPS)';
       try {
-        const r = await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=' + lat +
-          '&lon=' + lng + '&zoom=17&accept-language=es', { headers: { 'Accept': 'application/json' } });
-        const j = await r.json();
-        if (j.display_name) label = 'GPS: ' + j.display_name.split(',').slice(0, 3).join(',');
-      } catch (e) {}
+        if (googleOn) {
+          // dirección precisa de Google (vía proxy propio)
+          const g = await api('/api/revgeo?lat=' + lat + '&lng=' + lng);
+          label = 'GPS: ' + g.label.split(',').slice(0, 2).join(',');
+        } else {
+          throw new Error('sin-google');
+        }
+      } catch (e) {
+        try {
+          const r = await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=' + lat +
+            '&lon=' + lng + '&zoom=17&accept-language=es', { headers: { 'Accept': 'application/json' } });
+          const j = await r.json();
+          if (j.display_name) label = 'GPS: ' + j.display_name.split(',').slice(0, 3).join(',');
+        } catch (e2) {}
+      }
       setUserLocation(lat, lng, label);
       updateAccuracyCircle(lat, lng);
       startGeoWatch();   // seguir compartiendo la posición mientras se mueva
@@ -939,7 +981,48 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('.autocomplete-wrap')) sugBox.classList.add('hidden');
 });
 
+function pintarSugerencias(items) {
+  // items: [{txt, pick()}]
+  sugBox.innerHTML = '';
+  if (!items.length) {
+    sugBox.innerHTML = '<div style="cursor:default;color:#999">Sin resultados…</div>';
+  } else {
+    items.forEach((it) => {
+      const div = document.createElement('div');
+      div.textContent = it.txt;
+      div.addEventListener('click', () => {
+        addrInput.value = it.txt;
+        sugBox.classList.add('hidden');
+        it.pick();
+      });
+      sugBox.appendChild(div);
+    });
+  }
+  sugBox.classList.remove('hidden');
+}
+
 async function fetchSuggestions(q) {
+  // 1) Buscador de Google (preciso a nivel de dirección), vía proxy propio
+  if (googleOn) {
+    try {
+      const bias = state.user
+        ? '&lat=' + state.user.lat.toFixed(4) + '&lng=' + state.user.lng.toFixed(4) : '';
+      const d = await api('/api/geocode?q=' + encodeURIComponent(q) + bias);
+      pintarSugerencias(d.results.map((it) => ({
+        txt: it.txt,
+        pick: async () => {
+          try {
+            const p = await api('/api/place?id=' + encodeURIComponent(it.id));
+            setUserLocation(p.lat, p.lng, p.label || it.txt);
+          } catch (e) {
+            avisoMapa('No se pudo ubicar esa dirección, intenta otra.');
+          }
+        },
+      })));
+      return;
+    } catch (e) { /* cupo agotado o error de Google: cae a OSM */ }
+  }
+  // 2) Respaldo: Nominatim (OpenStreetMap)
   if (acAbort) acAbort.abort();
   acAbort = new AbortController();
   const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&accept-language=es' +
@@ -948,22 +1031,11 @@ async function fetchSuggestions(q) {
   try {
     const r = await fetch(url, { signal: acAbort.signal, headers: { 'Accept': 'application/json' } });
     const list = await r.json();
-    sugBox.innerHTML = '';
-    if (!list.length) {
-      sugBox.innerHTML = '<div style="cursor:default;color:#999">Sin resultados en Bogotá…</div>';
-    } else {
-      list.forEach((it) => {
-        const div = document.createElement('div');
-        div.textContent = it.display_name.split(',').slice(0, 4).join(',');
-        div.addEventListener('click', () => {
-          addrInput.value = div.textContent;
-          sugBox.classList.add('hidden');
-          setUserLocation(parseFloat(it.lat), parseFloat(it.lon), div.textContent);
-        });
-        sugBox.appendChild(div);
-      });
-    }
-    sugBox.classList.remove('hidden');
+    pintarSugerencias(list.map((it) => ({
+      txt: it.display_name.split(',').slice(0, 4).join(','),
+      pick: () => setUserLocation(parseFloat(it.lat), parseFloat(it.lon),
+        it.display_name.split(',').slice(0, 4).join(',')),
+    })));
   } catch (e) { /* petición cancelada o sin red */ }
 }
 
@@ -1025,7 +1097,9 @@ function renderRecommendations() {
       '<div class="reco-rank">' + (i + 1) + '</div>' +
       (i === 0 ? '<div class="top-tag">Tu mejor opción ahora</div>' : '') +
       '<div class="reco-head"><div class="reco-name">' + escapeHtml(s.nombre) + '</div>' +
-      '<div class="reco-right">' + ptsChip(r.pts) + '<span class="reco-eta">~' + Math.round(r.eta) + ' min</span></div></div>' +
+      '<div class="reco-right">' + ptsChip(r.pts) + '<span class="reco-eta" title="' +
+      (r.fuente === 'google' ? 'Tiempo real de Google Maps (con tráfico)' : 'Estimación del modelo local calibrado') +
+      '">~' + Math.round(r.eta) + ' min</span></div></div>' +
       '<div class="reco-sub">' + escapeHtml(s.direccion) + ' · ' + distTxt + '</div>' +
       '<div class="reco-badges">' + tipoBadge + estadoBadge + extras + '</div>' + warn;
 

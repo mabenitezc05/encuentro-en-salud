@@ -76,12 +76,13 @@ GOOGLE_TOP_N = max(1, min(50, int(os.environ.get('GOOGLE_TOP_N', '10'))))
 CAP_RUTAS = int(os.environ.get('GOOGLE_CAP_RUTAS', '150'))        # computeRoutes/dia
 CAP_ELEMENTOS = int(os.environ.get('GOOGLE_CAP_ELEMENTOS', '2000'))  # elementos matriz/dia
 CAP_FOTOS = int(os.environ.get('GOOGLE_CAP_FOTOS', '120'))        # busquedas de foto/dia
+CAP_GEO = int(os.environ.get('GOOGLE_CAP_GEO', '600'))            # geocodificacion/dia
 
 class BudgetAgotado(Exception):
     pass
 
 
-_budget = {'day': '', 'route': 0, 'elem': 0, 'photo': 0}
+_budget = {'day': '', 'route': 0, 'elem': 0, 'photo': 0, 'geo': 0}
 
 
 def budget_take(kind, amount, cap):
@@ -89,7 +90,7 @@ def budget_take(kind, amount, cap):
     with _lock:
         today = time.strftime('%Y-%m-%d')
         if _budget['day'] != today:
-            _budget.update({'day': today, 'route': 0, 'elem': 0, 'photo': 0})
+            _budget.update({'day': today, 'route': 0, 'elem': 0, 'photo': 0, 'geo': 0})
         if _budget[kind] + amount > cap:
             return False
         _budget[kind] += amount
@@ -362,6 +363,96 @@ def google_place_photo(pkey, query):
     return img
 
 
+_geo_cache = {}   # clave -> (ts, datos); sugerencias, detalles y reversa (TTL 24 h)
+
+
+def _geo_cached(key):
+    with _lock:
+        hit = _geo_cache.get(key)
+    if hit and time.time() - hit[0] < 86400:
+        return hit[1]
+    return None
+
+
+def _geo_store(key, data):
+    with _lock:
+        if len(_geo_cache) > 4000:
+            _geo_cache.clear()
+        _geo_cache[key] = (time.time(), data)
+
+
+def _geo_get(url):
+    with urllib.request.urlopen(url, timeout=8) as r:
+        data = json.loads(r.read().decode('utf-8'))
+    if data.get('status') not in ('OK', 'ZERO_RESULTS'):
+        raise RuntimeError('geo status: %s %s' % (data.get('status'), data.get('error_message', '')))
+    return data
+
+
+def google_autocomplete(q, lat=None, lng=None):
+    """Sugerencias de direccion (Places Autocomplete), sesgadas a la posicion."""
+    key = 'A|%s|%s' % (q.lower(), ('%.2f,%.2f' % (lat, lng)) if lat is not None else 'co')
+    hit = _geo_cached(key)
+    if hit is not None:
+        return hit
+    if not budget_take('geo', 1, CAP_GEO):
+        raise BudgetAgotado()
+    url = ('https://maps.googleapis.com/maps/api/place/autocomplete/json'
+           '?input=%s&components=country:co&language=es&key=%s'
+           % (urllib.parse.quote(q), GOOGLE_KEY))
+    if lat is not None:
+        url += '&location=%.5f,%.5f&radius=50000' % (lat, lng)
+    data = _geo_get(url)
+    out = [{'id': p.get('place_id', ''), 'txt': p.get('description', '')}
+           for p in (data.get('predictions') or [])[:6] if p.get('place_id')]
+    _geo_store(key, out)
+    return out
+
+
+def google_place(place_id):
+    """Coordenadas y direccion formateada de una sugerencia elegida."""
+    key = 'P|' + place_id
+    hit = _geo_cached(key)
+    if hit is not None:
+        return hit
+    if not budget_take('geo', 1, CAP_GEO):
+        raise BudgetAgotado()
+    url = ('https://maps.googleapis.com/maps/api/place/details/json'
+           '?place_id=%s&fields=geometry/location,formatted_address&language=es&key=%s'
+           % (urllib.parse.quote(place_id), GOOGLE_KEY))
+    data = _geo_get(url)
+    res = data.get('result') or {}
+    loc = ((res.get('geometry') or {}).get('location')) or {}
+    if 'lat' not in loc:
+        return None
+    out = {'lat': loc['lat'], 'lng': loc['lng'],
+           'label': res.get('formatted_address', '')}
+    _geo_store(key, out)
+    return out
+
+
+def google_revgeo(lat, lng):
+    """Direccion legible para una coordenada GPS (Geocoding inverso)."""
+    key = 'G|%.4f,%.4f' % (lat, lng)
+    hit = _geo_cached(key)
+    if hit is not None:
+        return hit
+    if not budget_take('geo', 1, CAP_GEO):
+        raise BudgetAgotado()
+    url = ('https://maps.googleapis.com/maps/api/geocode/json'
+           '?latlng=%.6f,%.6f&language=es&key=%s' % (lat, lng, GOOGLE_KEY))
+    data = _geo_get(url)
+    results = data.get('results') or []
+    # preferir una direccion de calle real (no un "plus code")
+    PREF = ('street_address', 'route', 'premise', 'subpremise', 'intersection', 'neighborhood')
+    best = next((r for r in results if set(r.get('types') or []) & set(PREF)), None)
+    if best is None:
+        best = next((r for r in results if 'plus_code' not in (r.get('types') or [])), None)
+    out = {'label': best['formatted_address']} if best else None
+    _geo_store(key, out)
+    return out
+
+
 def google_route(olat, olng, dlat, dlng, mode, departure_ms):
     """Ruta única con polilínea. Cacheada: repetir un clic no gasta cupo."""
     key = 'R|%.4f,%.4f|%.4f,%.4f|%s|%s|%d' % (
@@ -486,9 +577,55 @@ class Handler(SimpleHTTPRequestHandler):
             return self._stream()
         if path == '/api/photo':
             return self._photo()
+        if path in ('/api/geocode', '/api/place', '/api/revgeo'):
+            return self._geo(path)
         if path == '/api/ping':
             return self._json(200, {'ok': True})
         return super().do_GET()
+
+    def _geo(self, path):
+        # Proxy autenticado al buscador de Google (la clave nunca sale del servidor)
+        u = self._user()
+        if not u:
+            return self._json(401, {'error': 'no-session'})
+        if not GOOGLE_KEY:
+            return self._json(501, {'error': 'google-no-configurado'})
+        qs = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+        try:
+            if path == '/api/geocode':
+                q = (qs.get('q', [''])[0]).strip()[:120]
+                if len(q) < 4:
+                    return self._json(400, {'error': 'consulta-corta'})
+                lat = lng = None
+                try:
+                    lat, lng = float(qs['lat'][0]), float(qs['lng'][0])
+                except (KeyError, ValueError, IndexError):
+                    pass
+                return self._json(200, {'results': google_autocomplete(q, lat, lng)})
+            if path == '/api/place':
+                pid = (qs.get('id', [''])[0]).strip()[:200]
+                if not pid:
+                    return self._json(400, {'error': 'id-invalido'})
+                out = google_place(pid)
+                if not out:
+                    return self._json(404, {'error': 'sin-resultado'})
+                if not in_colombia(out['lat'], out['lng']):
+                    return self._json(400, {'error': 'fuera-de-cobertura'})
+                return self._json(200, out)
+            # /api/revgeo
+            try:
+                lat, lng = float(qs['lat'][0]), float(qs['lng'][0])
+            except (KeyError, ValueError, IndexError):
+                return self._json(400, {'error': 'coordenadas-invalidas'})
+            out = google_revgeo(lat, lng)
+            if not out:
+                return self._json(404, {'error': 'sin-resultado'})
+            return self._json(200, out)
+        except BudgetAgotado:
+            return self._json(429, {'error': 'presupuesto-diario-agotado'})
+        except Exception as e:
+            print('[google] error geo: %s' % e)
+            return self._json(502, {'error': 'google-error'})
 
     def _photo(self):
         u = self._user()

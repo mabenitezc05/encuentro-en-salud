@@ -2,7 +2,7 @@
    Estrategia: red primero (la app vive del servidor y de la API);
    solo los estáticos con respaldo en caché para tolerar cortes breves.
    Nunca se cachea /api/ (datos en vivo, sesiones). */
-const CACHE = 'encuentro-v1';
+const CACHE = 'encuentro-v2';
 const ESTATICOS = ['/', '/css/styles.css', '/js/app.js', '/js/avatar3d.js',
   '/data/data.js', '/img/mariposa_oficial.png', '/img/mariposa.svg', '/img/encuentro.jpg'];
 
