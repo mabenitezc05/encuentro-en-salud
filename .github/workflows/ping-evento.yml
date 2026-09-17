@@ -1,0 +1,19 @@
+# Mantiene despierta la instancia Free de Render durante el evento
+# (17 y 18 de septiembre de 2026). GitHub Actions ejecuta el cron en UTC:
+# se cubre del 17 a las 00:00 UTC al 19 a las 23:50 UTC, que envuelve
+# completamente ambos días en hora de Colombia (UTC-5).
+name: Ping evento (17-18 sep)
+
+on:
+  schedule:
+    - cron: '*/10 * 17-19 9 *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping a la app
+        run: |
+          curl -s -m 30 -o /dev/null -w "ping %{http_code} en %{time_total}s\n" \
+            https://encuentro-en-salud.onrender.com/api/ping || true
